@@ -14,6 +14,31 @@ export const users = sqliteTable("users", {
   ...timestamps,
 }, (table) => [uniqueIndex("users_email_unique").on(table.email)]);
 
+export const adminLoginCodes = sqliteTable("admin_login_codes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull(),
+  codeHash: text("code_hash").notNull(),
+  requestIpHash: text("request_ip_hash").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  consumedAt: integer("consumed_at"),
+  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+}, (table) => [
+  index("admin_login_codes_email_created_idx").on(table.email, table.createdAt),
+  index("admin_login_codes_ip_created_idx").on(table.requestIpHash, table.createdAt),
+]);
+
+export const adminSessions = sqliteTable("admin_sessions", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+  lastSeenAt: integer("last_seen_at").notNull(),
+  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+}, (table) => [
+  index("admin_sessions_email_idx").on(table.email),
+  index("admin_sessions_expires_idx").on(table.expiresAt),
+]);
+
 export const categories = sqliteTable("categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -92,7 +117,7 @@ export const feedItems = sqliteTable("feed_items", {
   ...timestamps,
 }, (table) => [
   uniqueIndex("feed_items_external_unique").on(table.externalId),
-  index("feed_items_fingerprint_idx").on(table.fingerprint),
+  uniqueIndex("feed_items_fingerprint_unique").on(table.fingerprint),
   index("feed_items_status_idx").on(table.processingStatus),
 ]);
 

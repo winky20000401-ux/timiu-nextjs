@@ -63,7 +63,9 @@ export function SiteFooter() {
           <Link href="/about">关于我们</Link>
           <Link href="/privacy">隐私政策</Link>
           <Link href="/rss.xml">RSS 订阅</Link>
-          <Link href="/admin">编辑工作台</Link>
+          {/* Auth is dispatcher-owned. A document navigation prevents the RSC
+              client from rewriting the reserved sign-in route to *.rsc. */}
+          <a href="/admin">编辑工作台</a>
         </div>
         <div>
           <h2>热门标签</h2>

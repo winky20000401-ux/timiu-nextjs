@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canAutoPublish, hasVersionConflict, titleSimilarity } from "../lib/automation.ts";
+import { detectLanguage, prepareFeedItems, stripHtml } from "../lib/feed.ts";
+import {
+  constantTimeEqual,
+  hashAuthValue,
+  isAllowedAdminEmail,
+  normalizeEmail,
+  safeAdminReturnTo,
+} from "../lib/admin-auth-crypto.ts";
+import { readFile } from "node:fs/promises";
 
 test("版本数字冲突会阻止错误合并", () => {
   assert.equal(hasVersionConflict("《黑色行动 2》发布更新", "《黑色行动 7》发布更新"), true);
@@ -30,4 +39,69 @@ test("自动发布必须满足全部安全条件", () => {
   assert.equal(canAutoPublish({ ...safe, hasConflict: true }), false);
   assert.equal(canAutoPublish({ ...safe, isRumor: true }), false);
   assert.equal(canAutoPublish({ ...safe, isDuplicate: true }), false);
+});
+
+test("Gemini 3.6 使用 Interactions API 与搜索工具", async () => {
+  const route = await readFile(new URL("../app/api/automation/draft/route.ts", import.meta.url), "utf8");
+  assert.match(route, /AI_REWRITE_ENABLED !== "true"/);
+  assert.match(route, /AI 长文重写已关闭/);
+  assert.match(route, /v1beta\/interactions/);
+  assert.match(route, /type: "google_search"/);
+  assert.match(route, /response_format/);
+  assert.doesNotMatch(route, /generationConfig|temperature/);
+});
+
+test("RSS 摘要会清理 HTML 并识别中文", () => {
+  assert.equal(stripHtml("<p>新作&nbsp;<b>发售</b></p>"), "新作 发售");
+  assert.equal(detectLanguage("这是一条中文游戏新闻摘要"), "zh");
+  assert.equal(detectLanguage("This is an English game news summary"), "other");
+});
+
+test("RSS 入库限制数量并标记重复与待翻译", async () => {
+  const items = await prepareFeedItems([
+    { id: "1", title: "某游戏公布发售日期", canonical: [{ href: "https://example.com/a" }], summary: { content: "<p>官方公布新的发售安排。</p>" }, published: 1785200000 },
+    { id: "2", title: "某游戏公布发售日期", canonical: [{ href: "https://example.com/b" }], summary: { content: "相同事件的补充来源" }, published: 1785200000 },
+    { id: "3", title: "Studio announces launch date", canonical: [{ href: "https://example.com/c" }], summary: { content: "Official release information." }, published: 1785200000 },
+  ], 100);
+  assert.equal(items.length, 3);
+  assert.equal(items[0].status, "review");
+  assert.equal(items[1].status, "duplicate");
+  assert.equal(items[2].status, "translation_required");
+});
+
+test("管理员邮箱白名单会规范化大小写和空格", () => {
+  assert.equal(normalizeEmail(" Admin@Example.COM "), "admin@example.com");
+  assert.equal(isAllowedAdminEmail(" ADMIN@example.com ", "owner@example.com, admin@example.com"), true);
+  assert.equal(isAllowedAdminEmail("other@example.com", "owner@example.com, admin@example.com"), false);
+});
+
+test("后台登录回跳地址只能留在管理区", () => {
+  assert.equal(safeAdminReturnTo("/admin/articles?status=review"), "/admin/articles?status=review");
+  assert.equal(safeAdminReturnTo("https://evil.example/admin"), "/admin");
+  assert.equal(safeAdminReturnTo("//evil.example/admin"), "/admin");
+  assert.equal(safeAdminReturnTo("/admin/login?return_to=/admin"), "/admin");
+});
+
+test("验证码和会话使用带密钥的哈希比较", async () => {
+  const first = await hashAuthValue("a-secure-session-secret-that-is-long", "code:a@example.com:123456");
+  const second = await hashAuthValue("a-secure-session-secret-that-is-long", "code:a@example.com:123456");
+  const other = await hashAuthValue("a-secure-session-secret-that-is-long", "code:a@example.com:654321");
+  assert.equal(first, second);
+  assert.notEqual(first, other);
+  assert.equal(constantTimeEqual(first, second), true);
+  assert.equal(constantTimeEqual(first, other), false);
+});
+
+test("独立管理员登录包含限流、短期验证码和安全 Cookie", async () => {
+  const requestRoute = await readFile(new URL("../app/api/admin/auth/request-code/route.ts", import.meta.url), "utf8");
+  const verifyRoute = await readFile(new URL("../app/api/admin/auth/verify-code/route.ts", import.meta.url), "utf8");
+  assert.match(requestRoute, /created_at > unixepoch\(\) - 600/);
+  assert.match(requestRoute, /unixepoch\(\) \+ 600/);
+  assert.match(requestRoute, />= 3/);
+  assert.match(requestRoute, />= 10/);
+  assert.doesNotMatch(requestRoute, /console\.(log|info|debug)\s*\(/);
+  assert.match(verifyRoute, /attempts < 5/);
+  assert.match(verifyRoute, /httpOnly: true/);
+  assert.match(verifyRoute, /sameSite: "lax"/);
+  assert.match(verifyRoute, /secure: true/);
 });

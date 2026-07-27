@@ -1,11 +1,11 @@
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getAdminUser } from "@/app/admin-auth";
 import { automationDefaults, FeedCandidate } from "@/lib/automation";
 
 const DEFAULT_JSON_FEED = "https://www.inoreader.com/stream/user/1003743197/tag/%E6%B8%B8%E6%88%8F%E6%96%B0%E9%97%BB/view/json";
 
 export async function POST() {
-  const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: "需要管理员登录" }, { status: 401 });
+  const user = await getAdminUser();
+  if (!user) return Response.json({ error: "需要管理员权限" }, { status: 403 });
   const headers: HeadersInit = { accept: "application/json" };
   if (process.env.FEED_AUTHORIZATION) headers.authorization = process.env.FEED_AUTHORIZATION;
   const response = await fetch(process.env.FEED_URL ?? DEFAULT_JSON_FEED, { headers });

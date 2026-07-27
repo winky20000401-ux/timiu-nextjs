@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render(pathname = "/") {
@@ -23,6 +24,12 @@ test("首页可服务端渲染并包含完整品牌与导航", async () => {
   assert.match(html, /科技硬件/);
   assert.match(html, /游戏攻略/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
+});
+
+test("后台入口使用完整页面导航以交给平台处理登录", async () => {
+  const source = await readFile(new URL("../components/SiteChrome.tsx", import.meta.url), "utf8");
+  assert.match(source, /<a href="\/admin">编辑工作台<\/a>/);
+  assert.doesNotMatch(source, /<Link href="\/admin">编辑工作台<\/Link>/);
 });
 
 test("栏目、搜索、文章和静态页面可渲染", async () => {
