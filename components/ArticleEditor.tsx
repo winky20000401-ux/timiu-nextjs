@@ -4,7 +4,7 @@ import { useState } from "react";
 
 type Category = { id: number; name: string };
 type ArticleForm = {
-  id: number;
+  id: number | null;
   title: string;
   subtitle: string;
   slug: string;
@@ -14,6 +14,8 @@ type ArticleForm = {
   categoryId: number | null;
   tags: string;
   status: string;
+  sourceUrl: string;
+  sourceTitle: string;
 };
 
 export function ArticleEditor({ article, categories }: { article: ArticleForm; categories: Category[] }) {
@@ -26,16 +28,29 @@ export function ArticleEditor({ article, categories }: { article: ArticleForm; c
   async function save() {
     setSaving(true);
     setMessage("");
-    const response = await fetch(`/api/admin/articles/${article.id}`, {
-      method: "PUT",
+    const response = await fetch(article.id === null ? "/api/admin/articles" : `/api/admin/articles/${article.id}`, {
+      method: article.id === null ? "POST" : "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(form),
     });
-    const result = await response.json() as { error?: string };
-    setMessage(result.error ?? "草稿已保存");
+    const result = await response.json() as { error?: string; id?: number };
+    if (!response.ok) {
+      setMessage(result.error ?? "草稿保存失败");
+      setSaving(false);
+      return;
+    }
+    if (article.id === null && result.id) {
+      window.location.assign(`/admin/articles/${result.id}`);
+      return;
+    }
+    setMessage("草稿已保存");
     setSaving(false);
   }
   async function transition(action: "publish" | "unpublish" | "archive") {
+    if (article.id === null) {
+      setMessage("请先创建草稿，再进行发布操作");
+      return;
+    }
     if (action === "publish" && !window.confirm("确认人工审核完成并公开发布这篇文章？")) return;
     const response = await fetch(`/api/admin/articles/${article.id}/status`, {
       method: "POST",
@@ -60,11 +75,16 @@ export function ArticleEditor({ article, categories }: { article: ArticleForm; c
       <label>SEO 标题<input value={form.seoTitle} onChange={(event) => field("seoTitle", event.target.value)} /></label>
       <label>Meta Description<textarea rows={3} value={form.description} onChange={(event) => field("description", event.target.value)} /></label>
       <label>标签（用逗号分隔）<input value={form.tags} onChange={(event) => field("tags", event.target.value)} /></label>
+      <div className="editor-row">
+        <label>主要来源链接<input type="url" value={form.sourceUrl} onChange={(event) => field("sourceUrl", event.target.value)} placeholder="https://example.com/source" /></label>
+        <label>来源名称<input value={form.sourceTitle} onChange={(event) => field("sourceTitle", event.target.value)} placeholder="官方公告或媒体名称" /></label>
+      </div>
+      <p className="editor-help">草稿可以暂时不填来源，但公开发布前必须至少填写一个有效来源链接。</p>
       <label>正文<textarea rows={18} value={form.contentText} onChange={(event) => field("contentText", event.target.value)} /></label>
       <div className="editor-buttons">
-        <button className="primary-button" type="button" onClick={save} disabled={saving}>{saving ? "保存中…" : "保存草稿"}</button>
-        {form.status !== "published" ? <button type="button" onClick={() => transition("publish")}>人工审核并发布</button> : <button type="button" onClick={() => transition("unpublish")}>撤回文章</button>}
-        <button type="button" onClick={() => transition("archive")}>归档</button>
+        <button className="primary-button" type="button" onClick={save} disabled={saving}>{saving ? "保存中…" : article.id === null ? "创建草稿" : "保存草稿"}</button>
+        {article.id !== null && (form.status !== "published" ? <button type="button" onClick={() => transition("publish")}>人工审核并发布</button> : <button type="button" onClick={() => transition("unpublish")}>撤回文章</button>)}
+        {article.id !== null && <button type="button" onClick={() => transition("archive")}>归档</button>}
       </div>
       {message && <p className="editor-message" role="status">{message}</p>}
     </section>

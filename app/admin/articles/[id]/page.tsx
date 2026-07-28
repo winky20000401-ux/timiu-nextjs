@@ -20,10 +20,18 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
     "SELECT id, title, subtitle, slug, seo_title, description, content_html, category_id, status FROM articles WHERE id = ?"
   ).bind(articleId).first<ArticleRow>();
   if (!article) notFound();
-  const [categories, tags] = await Promise.all([
+  const [categories, tags, sources] = await Promise.all([
     env.DB.prepare("SELECT id, name FROM categories ORDER BY sort_order, name").all<{ id: number; name: string }>(),
     env.DB.prepare("SELECT t.name FROM tags t JOIN article_tags at ON at.tag_id = t.id WHERE at.article_id = ? ORDER BY t.name").bind(articleId).all<{ name: string }>(),
+    env.DB.prepare(
+      `SELECT s.url, s.title FROM sources s
+       JOIN article_sources article_source ON article_source.source_id = s.id
+       WHERE article_source.article_id = ?
+       ORDER BY CASE article_source.role WHEN 'primary' THEN 0 ELSE 1 END, s.id
+       LIMIT 1`
+    ).bind(articleId).all<{ url: string; title: string }>(),
   ]);
+  const source = sources.results[0];
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin/articles"><strong>TIMIU</strong><span>文章编辑</span></Link><Link className="admin-user" href="/admin/articles">返回文章列表</Link></div></header>
     <div className="shell admin-page">
@@ -33,6 +41,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
         seoTitle: article.seo_title, description: article.description,
         contentText: htmlToText(article.content_html), categoryId: article.category_id,
         tags: tags.results.map((tag) => tag.name).join(", "), status: article.status,
+        sourceUrl: source?.url ?? "", sourceTitle: source?.title ?? "",
       }} categories={categories.results} />
     </div>
   </main>;
