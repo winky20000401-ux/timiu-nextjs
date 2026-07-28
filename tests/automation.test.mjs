@@ -70,6 +70,21 @@ test("RSS 入库限制数量并标记重复与待翻译", async () => {
   assert.equal(items[2].status, "translation_required");
 });
 
+test("Inoreader 公共 JSON Feed 的 url、content_html 和 date_published 可正常解析", async () => {
+  const items = await prepareFeedItems([{
+    id: "json-feed-1",
+    url: "https://example.com/news/story",
+    title: "New game announces release date",
+    content_html: "<p>The studio confirmed the release window.</p>",
+    date_published: "2026-07-28T01:00:00Z",
+  }], 100);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].url, "https://example.com/news/story");
+  assert.equal(items[0].summary, "The studio confirmed the release window.");
+  assert.equal(items[0].publishedAt, "2026-07-28T01:00:00.000Z");
+  assert.equal(items[0].status, "translation_required");
+});
+
 test("Inoreader 请求固定读取最多 100 条并保留其他参数", () => {
   const url = feedUrlWithLimit("https://www.inoreader.com/stream/user/example/tag/news/view/json?foo=bar", 100);
   assert.equal(new URL(url).searchParams.get("n"), "100");
@@ -84,6 +99,15 @@ test("RSS 入库结果区分新条目与数据库已存在条目", async () => {
   assert.match(route, /newestPublishedAt/);
   assert.match(button, /没有新条目/);
   assert.match(button, /已存在/);
+});
+
+test("外文 RSS 线索可以生成待翻译、待审核草稿", async () => {
+  const route = await readFile(new URL("../app/api/admin/feed/[id]/draft/route.ts", import.meta.url), "utf8");
+  const queue = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  assert.match(route, /\["review", "translation_required"\]/);
+  assert.match(route, /需要人工翻译/);
+  assert.match(queue, /生成待人工编辑的草稿/);
+  assert.match(queue, /needsTranslation/);
 });
 
 test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {

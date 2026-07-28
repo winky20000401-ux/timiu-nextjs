@@ -224,6 +224,11 @@ img { max-width: 100%; }
 .queue-table td > strong, .queue-table td > small { display: block; }
 .queue-table td > small { margin-top: 6px; color: #78838f; line-height: 1.55; }
 .queue-table a { color: #4a6800; text-decoration: underline; }
+.feed-usage-guide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 20px; padding: 0; list-style: none; }
+.feed-usage-guide li { padding: 16px; border: 1px solid #d7ddda; border-left: 3px solid var(--lime); background: white; }
+.feed-usage-guide strong, .feed-usage-guide span { display: block; }
+.feed-usage-guide strong { margin-bottom: 6px; font-size: 12px; }
+.feed-usage-guide span { color: #6b7683; font-size: 11px; line-height: 1.6; }
 .queue-action button { padding: 7px 9px; border: 1px solid #b8c2bc; background: #f7faf6; cursor: pointer; font-size: 11px; }
 .queue-action button:disabled { cursor: not-allowed; opacity: .5; }
 .queue-action small { display: block; max-width: 180px; margin-top: 6px; color: #687481; }
@@ -354,6 +359,7 @@ img { max-width: 100%; }
   .admin-card { overflow-x: auto; }
   .editor-row { grid-template-columns: 1fr; }
   .cover-editor-grid { grid-template-columns: 1fr; }
+  .feed-usage-guide { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

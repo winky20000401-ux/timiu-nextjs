@@ -10,6 +10,7 @@ type Result = {
   duplicates?: number;
   requiresTranslation?: number;
   newestPublishedAt?: string | null;
+  rejected?: { missingTitle?: number; missingUrl?: number; invalidUrl?: number };
   error?: string;
 };
 
@@ -45,5 +46,8 @@ function rssSummary(result: Result) {
     ? `；源内最新 ${new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(result.newestPublishedAt))}`
     : "";
   const prefix = result.imported === 0 && (result.alreadyStored ?? 0) > 0 ? "没有新条目；" : "";
-  return `${prefix}读取 ${result.fetched ?? 0} 条；有效 ${result.valid ?? 0} 条；新增 ${result.imported ?? 0} 条；已存在 ${result.alreadyStored ?? 0} 条；待翻译 ${result.requiresTranslation ?? 0} 条${newest}`;
+  const rejected = (result.fetched ?? 0) > (result.valid ?? 0)
+    ? `；过滤 ${(result.fetched ?? 0) - (result.valid ?? 0)} 条（缺标题 ${result.rejected?.missingTitle ?? 0}、缺链接 ${result.rejected?.missingUrl ?? 0}）`
+    : "";
+  return `${prefix}读取 ${result.fetched ?? 0} 条；有效 ${result.valid ?? 0} 条；新增 ${result.imported ?? 0} 条；已存在 ${result.alreadyStored ?? 0} 条；待翻译 ${result.requiresTranslation ?? 0} 条${rejected}${newest}`;
 }

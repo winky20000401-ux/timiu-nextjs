@@ -1,5 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
-import { feedUrlWithLimit, prepareFeedItems } from "@/lib/feed";
+import { feedRejectionSummary, feedUrlWithLimit, prepareFeedItems } from "@/lib/feed";
 
 const DEFAULT_JSON_FEED = "https://www.inoreader.com/stream/user/1003743197/tag/%E6%B8%B8%E6%88%8F%E6%96%B0%E9%97%BB/view/json";
 
@@ -19,7 +19,9 @@ export async function POST() {
     const response = await fetch(feedUrl, { headers });
     if (!response.ok) throw new Error(`RSS_HTTP_${response.status}`);
     const data = await response.json() as { items?: Array<Record<string, unknown>> };
-    const items = await prepareFeedItems(data.items ?? [], 100);
+    const rawItems = data.items ?? [];
+    const items = await prepareFeedItems(rawItems, 100);
+    const rejected = feedRejectionSummary(rawItems, 100);
     const statements = items.map((item) => env.DB.prepare(
       `INSERT OR IGNORE INTO feed_items
        (external_id, feed_url, title, url, summary, published_at, fingerprint, processing_status, raw_json)
@@ -40,8 +42,9 @@ export async function POST() {
       "UPDATE automation_jobs SET status = ?, input_count = ?, output_count = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
     ).bind("succeeded", items.length, imported, jobId).run();
     return Response.json({
-      fetched: (data.items ?? []).length,
+      fetched: rawItems.length,
       valid: items.length,
+      rejected,
       imported,
       alreadyStored,
       duplicates: items.filter((item) => item.status === "duplicate").length,

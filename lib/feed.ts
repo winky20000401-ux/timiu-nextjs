@@ -56,26 +56,72 @@ export async function sha256(value: string) {
 }
 
 function itemUrl(item: InoreaderItem) {
-  const canonical = item.canonical as Array<{ href?: string }> | undefined;
-  const alternate = item.alternate as Array<{ href?: string }> | undefined;
-  return String(canonical?.[0]?.href ?? alternate?.[0]?.href ?? "").trim();
+  const canonical = item.canonical as Array<{ href?: string }> | { href?: string } | undefined;
+  const alternate = item.alternate as Array<{ href?: string }> | { href?: string } | undefined;
+  const link = item.link as string | { href?: string } | undefined;
+  const candidates = [
+    item.url,
+    item.external_url,
+    Array.isArray(canonical) ? canonical[0]?.href : canonical?.href,
+    Array.isArray(alternate) ? alternate[0]?.href : alternate?.href,
+    typeof link === "string" ? link : link?.href,
+  ];
+  return candidates.map((value) => String(value ?? "").trim()).find((value) => /^https?:\/\//i.test(value)) ?? "";
 }
 
 function itemSummary(item: InoreaderItem) {
-  const summary = item.summary as { content?: string } | undefined;
+  const summary = item.summary as { content?: string } | string | undefined;
   const content = item.content as { content?: string } | undefined;
-  return stripHtml(String(summary?.content ?? content?.content ?? "")).slice(0, 6_000);
+  return stripHtml(String(
+    (typeof summary === "string" ? summary : summary?.content) ??
+    content?.content ??
+    item.content_html ??
+    item.content_text ??
+    ""
+  )).slice(0, 6_000);
+}
+
+function itemTitle(item: InoreaderItem) {
+  const title = item.title as string | { content?: string } | undefined;
+  return stripHtml(String(typeof title === "string" ? title : title?.content ?? "")).slice(0, 300);
+}
+
+function itemPublishedAt(item: InoreaderItem) {
+  const epochSeconds = Number(item.published);
+  if (Number.isFinite(epochSeconds) && epochSeconds > 0) return new Date(epochSeconds * 1_000).toISOString();
+  for (const value of [item.date_published, item.date_modified]) {
+    const date = new Date(String(value ?? ""));
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+  const timestampUsec = Number(item.timestampUsec);
+  if (Number.isFinite(timestampUsec) && timestampUsec > 0) return new Date(timestampUsec / 1_000).toISOString();
+  const crawlTimeMsec = Number(item.crawlTimeMsec);
+  if (Number.isFinite(crawlTimeMsec) && crawlTimeMsec > 0) return new Date(crawlTimeMsec).toISOString();
+  return null;
+}
+
+export function feedRejectionSummary(items: InoreaderItem[], limit = 100) {
+  const summary = { missingTitle: 0, missingUrl: 0, invalidUrl: 0 };
+  for (const item of items.slice(0, limit)) {
+    if (!itemTitle(item)) {
+      summary.missingTitle += 1;
+      continue;
+    }
+    const url = itemUrl(item);
+    if (!url) summary.missingUrl += 1;
+    else if (!/^https?:\/\//i.test(url)) summary.invalidUrl += 1;
+  }
+  return summary;
 }
 
 export async function prepareFeedItems(items: InoreaderItem[], limit = 100): Promise<PreparedFeedItem[]> {
   const prepared: PreparedFeedItem[] = [];
   for (const [index, item] of items.slice(0, limit).entries()) {
-    const title = stripHtml(String(item.title ?? "")).slice(0, 300);
+    const title = itemTitle(item);
     const url = itemUrl(item);
     if (!title || !url || !/^https?:\/\//i.test(url)) continue;
     const externalId = String(item.id ?? `${url}#${index}`).slice(0, 500);
     const summary = itemSummary(item);
-    const published = Number(item.published);
     const normalized = normalizeTitle(title);
     const fingerprint = await sha256(normalized);
     const duplicate = prepared.find((candidate) =>
@@ -88,9 +134,7 @@ export async function prepareFeedItems(items: InoreaderItem[], limit = 100): Pro
       title,
       url,
       summary,
-      publishedAt: Number.isFinite(published) && published > 0
-        ? new Date(published * 1_000).toISOString()
-        : null,
+      publishedAt: itemPublishedAt(item),
       fingerprint,
       language,
       status: duplicate ? "duplicate" : language === "zh" ? "review" : "translation_required",
