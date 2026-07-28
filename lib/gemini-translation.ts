@@ -116,35 +116,37 @@ export function parseGeminiApiError(text: string, status: number): GeminiApiErro
   }
 }
 
-export function geminiErrorForUser(status: number, code: string) {
+export function geminiErrorForUser(status: number, code: string, message = "") {
   const normalized = code.toLowerCase();
+  const detail = sanitizeGeminiErrorMessage(message);
+  const explain = (summary: string) => detail ? `${summary}；Google 原始错误：${detail}` : summary;
   if (status === 401 || normalized === "authentication" || normalized === "unauthenticated") {
-    return "Gemini API 密钥无效，请在 Google AI Studio 检查或重新创建密钥";
+    return explain("Gemini API 身份验证失败");
   }
   if (status === 403 || normalized === "permission_denied") {
-    return "Gemini API 密钥没有调用权限，请检查密钥所属项目、地区限制或计费设置";
+    return explain("Gemini API 拒绝访问");
   }
   if (normalized === "failed_precondition") {
-    return "当前地区不能使用 Gemini 免费额度，请在 Google AI Studio 为该项目启用计费";
+    return explain("Gemini API 前置条件未满足");
   }
   if (status === 429 || normalized === "rate_limit_exceeded" || normalized === "quota_exceeded" || normalized === "resource_exhausted") {
-    return "Gemini API 配额或速率已用尽，请检查 Google AI Studio 用量与计费后重试";
+    return explain("Gemini API 配额或速率限制已触发");
   }
   if (status === 404 || normalized === "model_not_found" || normalized === "not_found") {
-    return "当前 Gemini 模型不可用，请检查 GEMINI_MODEL 设置";
+    return explain("当前 Gemini 模型或资源不可用");
   }
   if (status === 400 || normalized === "invalid_request" || normalized === "parameter_unknown" || normalized === "invalid_argument") {
-    return "Gemini 请求格式不兼容，错误详情已安全记录";
+    return explain("Gemini API 拒绝了当前请求");
   }
   if (status >= 500) return "Gemini 服务暂时不可用，请稍后重试";
-  return `Gemini 翻译失败（${normalized || `HTTP ${status}`}），错误已安全记录`;
+  return explain(`Gemini 翻译失败（${normalized || `HTTP ${status}`}）`);
 }
 
 export function paragraphsToHtml(paragraphs: string[]) {
   return paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
 }
 
-function sanitizeGeminiErrorMessage(value: string) {
+export function sanitizeGeminiErrorMessage(value: string) {
   return value
     .replace(/AIza[A-Za-z0-9_-]+/g, "[redacted]")
     .replace(/[A-Za-z0-9_-]{48,}/g, "[redacted]")

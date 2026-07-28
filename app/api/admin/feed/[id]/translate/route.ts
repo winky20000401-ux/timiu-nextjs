@@ -82,7 +82,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         `GEMINI_HTTP_${response.status}:${details.code}${details.message ? `:${details.message}` : ""}`,
       );
       return Response.json(
-        { error: geminiErrorForUser(response.status, details.code), code: details.code },
+        { error: geminiErrorForUser(response.status, details.code, details.message), code: details.code },
         { status: 502 },
       );
     }

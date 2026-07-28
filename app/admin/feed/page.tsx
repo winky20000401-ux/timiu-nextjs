@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdminUser } from "@/app/admin-auth";
 import { FeedQueueAction } from "@/components/FeedQueueAction";
+import { sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +14,28 @@ type QueueItem = {
   processing_status: string;
 };
 
+type FailedTranslationJob = {
+  id: number;
+  model: string | null;
+  error_message: string | null;
+  finished_at: string | null;
+};
+
 export default async function FeedQueuePage() {
   await requireAdminUser("/admin/feed");
   const { env } = await import("cloudflare:workers");
-  const result = await env.DB.prepare(
-    `SELECT id, title, url, summary, published_at, processing_status
-     FROM feed_items ORDER BY created_at DESC LIMIT 100`
-  ).all<QueueItem>();
+  const [result, failedJobs] = await Promise.all([
+    env.DB.prepare(
+      `SELECT id, title, url, summary, published_at, processing_status
+       FROM feed_items ORDER BY created_at DESC LIMIT 100`
+    ).all<QueueItem>(),
+    env.DB.prepare(
+      `SELECT id, model, error_message, finished_at
+       FROM automation_jobs
+       WHERE type = 'rss_translation' AND status = 'failed'
+       ORDER BY id DESC LIMIT 10`
+    ).all<FailedTranslationJob>(),
+  ]);
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
     <div className="shell admin-page">
@@ -45,6 +61,19 @@ export default async function FeedQueuePage() {
             </tr>)}</tbody>
           </table>}
       </section>
+      {failedJobs.results.length > 0 && <section className="admin-card">
+        <h2>最近 Gemini 失败记录</h2>
+        <p className="muted">以下内容来自 Google API，已自动遮盖可能的密钥或长令牌。</p>
+        <table className="admin-table">
+          <thead><tr><th>任务</th><th>模型</th><th>Google 错误详情</th><th>时间</th></tr></thead>
+          <tbody>{failedJobs.results.map((job) => <tr key={job.id}>
+            <td>#{job.id}</td>
+            <td>{job.model ?? "未记录"}</td>
+            <td><code>{sanitizeGeminiErrorMessage(job.error_message ?? "未记录错误详情")}</code></td>
+            <td>{job.finished_at ?? "未记录"}</td>
+          </tr>)}</tbody>
+        </table>
+      </section>}
     </div>
   </main>;
 }

@@ -6,8 +6,11 @@ import { mediaUrl, safeCoverKey } from "../lib/media.ts";
 import {
   buildTranslationPrompt,
   extractInteractionText,
+  geminiErrorForUser,
   paragraphsToHtml,
+  parseGeminiApiError,
   parseTranslationDraft,
+  sanitizeGeminiErrorMessage,
 } from "../lib/gemini-translation.ts";
 import {
   constantTimeEqual,
@@ -181,7 +184,31 @@ test("Gemini 错误处理会分类失败并遮盖可能的密钥", async () => {
   assert.match(helper, /quota_exceeded/);
   assert.match(helper, /model_not_found/);
   assert.match(helper, /AIza\[A-Za-z0-9_-\]\+/);
-  assert.match(helper, /错误详情已安全记录/);
+  assert.match(helper, /Google 原始错误/);
+});
+
+test("Gemini 错误处理向管理员保留脱敏后的 Google 原始原因", () => {
+  const parsed = parseGeminiApiError(JSON.stringify({
+    error: {
+      code: 400,
+      status: "FAILED_PRECONDITION",
+      message: "Project billing mismatch for AIzaabcdefghijklmnopqrstuvwxyz123456",
+    },
+  }), 400);
+  assert.equal(parsed.code, "failed_precondition");
+  assert.doesNotMatch(parsed.message, /AIza/);
+  const visible = geminiErrorForUser(400, parsed.code, parsed.message);
+  assert.match(visible, /前置条件未满足/);
+  assert.match(visible, /Google 原始错误/);
+  assert.doesNotMatch(visible, /当前地区不能使用/);
+  assert.equal(sanitizeGeminiErrorMessage("token abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234"), "token [redacted]");
+});
+
+test("RSS 审核队列展示最近 Gemini 失败任务的脱敏原因", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /automation_jobs/);
+  assert.match(page, /最近 Gemini 失败记录/);
+  assert.match(page, /sanitizeGeminiErrorMessage/);
 });
 
 test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {
