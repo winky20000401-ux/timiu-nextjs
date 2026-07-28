@@ -147,6 +147,14 @@ test("Gemini RSS 翻译只使用给定来源并解析结构化中文草稿", () 
   assert.match(paragraphsToHtml(draft?.paragraphs ?? []), /<p>工作室宣布了一款新游戏。<\/p>/);
   const fenced = parseTranslationDraft(`\`\`\`json\n${text}\n\`\`\``);
   assert.equal(fenced?.title, "工作室公布新游戏");
+  const legacyText = extractInteractionText({
+    candidates: [{
+      content: {
+        parts: [{ text }],
+      },
+    }],
+  });
+  assert.equal(parseTranslationDraft(legacyText)?.title, "工作室公布新游戏");
 });
 
 test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发布", async () => {
@@ -154,6 +162,8 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   assert.match(route, /RSS_TRANSLATION_ENABLED/);
   assert.match(route, /GEMINI_API_KEY/);
   assert.match(route, /gemini-3\.6-flash/);
+  assert.match(route, /:generateContent/);
+  assert.match(route, /contents: \[\{/);
   assert.doesNotMatch(route, /response_format|generation_config/);
   assert.match(route, /status,\s*confidence, requires_review/);
   assert.match(route, /'review'/);

@@ -19,6 +19,11 @@ type InteractionResponse = {
     type?: string;
     content?: Array<{ type?: string; text?: string }>;
   }>;
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
 };
 
 export function buildTranslationPrompt(input: { title: string; summary: string; url: string }) {
@@ -44,6 +49,11 @@ paragraphs 为 2 至 6 个纯文本段落，不要输出 HTML。
 
 export function extractInteractionText(data: InteractionResponse) {
   if (typeof data.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
+  const candidateText = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((part) => typeof part.text === "string" ? part.text : "")
+    .join("")
+    .trim();
+  if (candidateText) return candidateText;
   for (let index = (data.steps ?? []).length - 1; index >= 0; index -= 1) {
     const step = data.steps?.[index];
     if (step?.type !== "model_output") continue;
@@ -93,7 +103,7 @@ export function parseTranslationDraft(text: string): TranslationDraft | null {
 export function parseGeminiApiError(text: string, status: number): GeminiApiError {
   try {
     const value = JSON.parse(text) as { error?: { code?: unknown; message?: unknown; status?: unknown } };
-    const code = String(value.error?.code ?? value.error?.status ?? `http_${status}`)
+    const code = String(value.error?.status ?? value.error?.code ?? `http_${status}`)
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "_")
       .slice(0, 80);
@@ -113,6 +123,9 @@ export function geminiErrorForUser(status: number, code: string) {
   }
   if (status === 403 || normalized === "permission_denied") {
     return "Gemini API 密钥没有调用权限，请检查密钥所属项目、地区限制或计费设置";
+  }
+  if (normalized === "failed_precondition") {
+    return "当前地区不能使用 Gemini 免费额度，请在 Google AI Studio 为该项目启用计费";
   }
   if (status === 429 || normalized === "rate_limit_exceeded" || normalized === "quota_exceeded" || normalized === "resource_exhausted") {
     return "Gemini API 配额或速率已用尽，请检查 Google AI Studio 用量与计费后重试";
