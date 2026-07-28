@@ -24,6 +24,7 @@ type QueueRow = {
 
 export default async function AdminPage() {
   const user = await requireAdminUser("/admin");
+  const geminiTranslationReady = process.env.RSS_TRANSLATION_ENABLED === "true" && Boolean(process.env.GEMINI_API_KEY);
   const { env } = await import("cloudflare:workers");
   const [stats, queue] = await Promise.all([
     env.DB.prepare(
@@ -47,7 +48,7 @@ export default async function AdminPage() {
     <main className="admin-shell">
       <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/"><strong>TIMIU</strong><span>编辑工作台</span></Link><div className="admin-user"><span>{user.displayName}</span><form action="/api/admin/auth/logout" method="post"><button className="link-button">退出</button></form></div></div></header>
       <div className="shell admin-page">
-        <div className="admin-heading"><div><h1>内容工作台</h1><p>处理 RSS 线索、手动草稿、人工审核与发布记录。</p><div className="admin-actions"><IngestButton /><Link className="primary-button admin-create-button" href="/admin/articles/new">＋ 新建文章</Link><Link className="secondary-button" href="/admin/feed">RSS 审核队列 →</Link><Link className="secondary-button" href="/admin/articles">文章管理 →</Link></div></div><span className="status-pill">AI 重写与自动发布：关闭</span></div>
+        <div className="admin-heading"><div><h1>内容工作台</h1><p>处理 RSS 线索、手动草稿、人工审核与发布记录。</p><div className="admin-actions"><IngestButton /><Link className="primary-button admin-create-button" href="/admin/articles/new">＋ 新建文章</Link><Link className="secondary-button" href="/admin/feed">RSS 审核队列 →</Link><Link className="secondary-button" href="/admin/articles">文章管理 →</Link></div></div><span className="status-pill">Gemini RSS 翻译：{geminiTranslationReady ? "已就绪" : "待配置密钥"} · 自动发布：关闭</span></div>
         <div className="stats-grid">
           <Link className="stat-card" href="/admin/articles?status=draft"><span>草稿</span><strong>{stats?.drafts ?? 0}</strong><small>查看草稿 →</small></Link>
           <Link className="stat-card" href="/admin/articles?review=required"><span>需要人工审核</span><strong>{stats?.review_required ?? 0}</strong><small>开始审核 →</small></Link>
@@ -75,7 +76,7 @@ export default async function AdminPage() {
               <summary>安全发布流程与运行参数</summary>
               <ol className="workflow"><li><b>1</b>读取 RSS 或手动新建文章</li><li><b>2</b>核对标题、正文与来源</li><li><b>3</b>排除版本冲突与重复选题</li><li><b>4</b>补全栏目、摘要和标签</li><li><b>5</b>人工审核后手动发布</li></ol>
               <h3>当前系统运行参数</h3>
-              <div className="config-list">AI_REWRITE_ENABLED=false<br />FULL_ARTICLE_TRANSLATION=false<br />SIMILARITY=0.45<br />AUTO_PUBLISH=false</div>
+              <div className="config-list">RSS_TRANSLATION_ENABLED=true<br />AI_REWRITE_ENABLED=false<br />FULL_ARTICLE_TRANSLATION=false<br />SIMILARITY=0.45<br />AUTO_PUBLISH=false</div>
             </details>
           </aside>
         </div>
