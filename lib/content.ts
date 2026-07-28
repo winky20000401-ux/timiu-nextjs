@@ -15,6 +15,9 @@ export type Article = {
   content: string[];
   sourceName: string;
   sourceUrl: string;
+  coverObjectKey?: string;
+  coverSource?: string;
+  coverCopyright?: string;
   featured?: boolean;
   popular?: boolean;
 };

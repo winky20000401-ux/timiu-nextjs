@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageFrame } from "@/components/SiteChrome";
 import { articles, categoryMeta, formatDate, getArticle } from "@/lib/content";
+import { mediaUrl } from "@/lib/media";
 
 type PublishedArticle = {
   id: number;
@@ -17,6 +18,9 @@ type PublishedArticle = {
   updated_at: string;
   category_name: string;
   category_slug: string;
+  cover_object_key: string | null;
+  cover_source: string | null;
+  cover_copyright: string | null;
 };
 
 type ArticleTag = { name: string; slug: string };
@@ -61,6 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       modifiedTime: published.updated_at,
       tags: tags.map((tag) => tag.name),
       url: canonical,
+      images: published.cover_object_key ? [{ url: mediaUrl(published.cover_object_key), alt: published.title }] : undefined,
     },
   };
 }
@@ -150,6 +155,7 @@ async function PublishedArticlePage({ article }: { article: PublishedArticle }) 
     author: { "@type": "Organization", name: "TIMIU 编辑部" },
     publisher: { "@type": "Organization", name: "TIMIU 游戏资讯", url: "https://timiu.com" },
     citation: sources.map((source) => source.url),
+    image: article.cover_object_key ? mediaUrl(article.cover_object_key) : undefined,
   };
   return (
     <PageFrame>
@@ -170,6 +176,12 @@ async function PublishedArticlePage({ article }: { article: PublishedArticle }) 
         <div className="shell article-body-wrap">
           <article className="article-body">
             <div className="published-notice"><strong>编辑说明：</strong>本文已完成来源核对，并由管理员手动发布。</div>
+            {article.cover_object_key && <figure className="article-cover-figure">
+              <img src={mediaUrl(article.cover_object_key)} alt={article.title} />
+              <figcaption>
+                图片来源：{article.cover_source || "未填写"} · 版权/授权：{article.cover_copyright || "未填写"}
+              </figcaption>
+            </figure>}
             <div dangerouslySetInnerHTML={{ __html: article.content_html }} />
             <section className="source-box">
               <h2>消息来源</h2>
@@ -211,7 +223,8 @@ async function getPublishedArticle(slug: string) {
     const { env } = await import("cloudflare:workers");
     return await env.DB.prepare(
       `SELECT a.id, a.title, a.subtitle, a.slug, a.seo_title, a.description, a.content_html,
-       a.canonical_url, a.published_at, a.updated_at, c.name AS category_name, c.slug AS category_slug
+       a.canonical_url, a.published_at, a.updated_at, a.cover_object_key, a.cover_source,
+       a.cover_copyright, c.name AS category_name, c.slug AS category_slug
        FROM articles a JOIN categories c ON c.id = a.category_id
        WHERE a.slug = ? AND a.status = 'published' AND a.published_at IS NOT NULL`
     ).bind(slug).first<PublishedArticle>();

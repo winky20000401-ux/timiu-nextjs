@@ -3,9 +3,13 @@
 import { useState } from "react";
 
 type Result = {
+  fetched?: number;
+  valid?: number;
   imported?: number;
+  alreadyStored?: number;
   duplicates?: number;
   requiresTranslation?: number;
+  newestPublishedAt?: string | null;
   error?: string;
 };
 
@@ -30,8 +34,16 @@ export function IngestButton() {
         {loading ? "正在读取…" : "读取最新 RSS"}
       </button>
       {result && <p role="status">
-        {result.error ?? `新增 ${result.imported ?? 0} 条；重复 ${result.duplicates ?? 0} 条；待翻译 ${result.requiresTranslation ?? 0} 条`}
+        {result.error ?? rssSummary(result)}
       </p>}
     </div>
   );
+}
+
+function rssSummary(result: Result) {
+  const newest = result.newestPublishedAt
+    ? `；源内最新 ${new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(result.newestPublishedAt))}`
+    : "";
+  const prefix = result.imported === 0 && (result.alreadyStored ?? 0) > 0 ? "没有新条目；" : "";
+  return `${prefix}读取 ${result.fetched ?? 0} 条；有效 ${result.valid ?? 0} 条；新增 ${result.imported ?? 0} 条；已存在 ${result.alreadyStored ?? 0} 条；待翻译 ${result.requiresTranslation ?? 0} 条${newest}`;
 }

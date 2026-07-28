@@ -1,5 +1,6 @@
 import { getAdminUser } from "@/app/admin-auth";
 import { ensureDefaultCategories } from "@/lib/categories";
+import { safeCoverKey } from "@/lib/media";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -13,6 +14,10 @@ export async function POST(request: Request) {
   const contentText = String(body.contentText ?? "").trim().slice(0, 40_000);
   const categoryId = Number(body.categoryId);
   const sourceUrl = safeSourceUrl(String(body.sourceUrl ?? ""));
+  const requestedCoverKey = String(body.coverObjectKey ?? "").trim();
+  const coverObjectKey = safeCoverKey(requestedCoverKey);
+  const coverSource = String(body.coverSource ?? "").trim().slice(0, 300);
+  const coverCopyright = String(body.coverCopyright ?? "").trim().slice(0, 500);
   const publishNow = body.publishNow === true;
   if (!title || !requestedSlug || !description || !contentText || !Number.isInteger(categoryId)) {
     return Response.json({ error: "标题、描述、栏目和正文均为必填项" }, { status: 400 });
@@ -22,6 +27,12 @@ export async function POST(request: Request) {
   }
   if (publishNow && !sourceUrl) {
     return Response.json({ error: "直接发布前必须填写有效的主要来源链接" }, { status: 400 });
+  }
+  if (requestedCoverKey && !coverObjectKey) {
+    return Response.json({ error: "封面文件标识无效，请重新上传" }, { status: 400 });
+  }
+  if (coverObjectKey && (!coverSource || !coverCopyright)) {
+    return Response.json({ error: "使用封面时必须填写图片来源和版权/授权说明" }, { status: 400 });
   }
 
   const contentHtml = textToHtml(contentText);
@@ -38,8 +49,9 @@ export async function POST(request: Request) {
     const article = await env.DB.prepare(
       `INSERT INTO articles
        (title, subtitle, slug, seo_title, description, content_html, category_id, author_id,
-        status, confidence, requires_review, review_reason, canonical_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 1, true, ?, '')`
+        status, confidence, requires_review, review_reason, canonical_url,
+        cover_object_key, cover_source, cover_copyright)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 1, true, ?, '', ?, ?, ?)`
     ).bind(
       title,
       String(body.subtitle ?? "").trim().slice(0, 240),
@@ -50,6 +62,9 @@ export async function POST(request: Request) {
       categoryId,
       dbUser?.id ?? null,
       "手动新建文章需要人工审核",
+      coverObjectKey || null,
+      coverObjectKey ? coverSource : null,
+      coverObjectKey ? coverCopyright : null,
     ).run();
     articleId = Number(article.meta.last_row_id);
   } catch {

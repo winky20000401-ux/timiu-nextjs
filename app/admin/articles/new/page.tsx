@@ -30,6 +30,9 @@ export default async function NewArticlePage() {
         status: "draft",
         sourceUrl: "",
         sourceTitle: "",
+        coverObjectKey: "",
+        coverSource: "",
+        coverCopyright: "",
       }} categories={categories.results} />
     </div>
   </main>;

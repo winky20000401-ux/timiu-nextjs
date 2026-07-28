@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { mediaUrl } from "@/lib/media";
 
 type Category = { id: number; name: string };
 type ArticleForm = {
@@ -16,17 +17,54 @@ type ArticleForm = {
   status: string;
   sourceUrl: string;
   sourceTitle: string;
+  coverObjectKey: string;
+  coverSource: string;
+  coverCopyright: string;
 };
 
 export function ArticleEditor({ article, categories }: { article: ArticleForm; categories: Category[] }) {
   const [form, setForm] = useState(article);
   const [message, setMessage] = useState("");
   const [savingMode, setSavingMode] = useState<"draft" | "publish" | null>(null);
+  const [uploading, setUploading] = useState(false);
   const selectedCategory = categories.find((category) => category.id === form.categoryId);
   function field(name: keyof ArticleForm, value: string | number) {
     setForm((current) => ({ ...current, [name]: value }));
   }
+  async function uploadCover(file: File | undefined) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setMessage("封面仅支持 JPEG、PNG 或 WebP");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("封面图片不能超过 5MB");
+      return;
+    }
+    setUploading(true);
+    setMessage("");
+    const data = new FormData();
+    data.set("file", file);
+    try {
+      const response = await fetch("/api/admin/media", { method: "POST", body: data });
+      const result = await response.json() as { error?: string; key?: string };
+      if (!response.ok || !result.key) {
+        setMessage(result.error ?? "封面上传失败");
+        return;
+      }
+      setForm((current) => ({ ...current, coverObjectKey: result.key ?? "" }));
+      setMessage("封面已上传，请继续填写图片来源和版权说明并保存文章");
+    } catch {
+      setMessage("封面上传失败，请稍后重试");
+    } finally {
+      setUploading(false);
+    }
+  }
   async function save(mode: "draft" | "publish") {
+    if (form.coverObjectKey && (!form.coverSource.trim() || !form.coverCopyright.trim())) {
+      setMessage("使用封面时必须填写图片来源和版权/授权说明");
+      return;
+    }
     if (mode === "publish") {
       if (!form.sourceUrl.trim()) {
         setMessage("直接发布前必须填写有效的主要来源链接");
@@ -86,6 +124,35 @@ export function ArticleEditor({ article, categories }: { article: ArticleForm; c
       <label>SEO 标题<input value={form.seoTitle} onChange={(event) => field("seoTitle", event.target.value)} /></label>
       <label>Meta Description<textarea rows={3} value={form.description} onChange={(event) => field("description", event.target.value)} /></label>
       <label>标签（用逗号分隔）<input value={form.tags} onChange={(event) => field("tags", event.target.value)} /></label>
+      <fieldset className="cover-editor">
+        <legend>文章封面</legend>
+        <div className="cover-editor-grid">
+          <div className="cover-preview">
+            {form.coverObjectKey
+              ? <img src={mediaUrl(form.coverObjectKey)} alt="当前文章封面预览" />
+              : <span>尚未上传封面</span>}
+          </div>
+          <div>
+            <label className="cover-upload">上传图片（JPEG / PNG / WebP，最大 5MB）
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={uploading}
+                onChange={(event) => {
+                  void uploadCover(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {form.coverObjectKey && <button className="cover-clear" type="button" onClick={() => field("coverObjectKey", "")}>移除当前封面</button>}
+          </div>
+        </div>
+        <div className="editor-row">
+          <label>图片来源<input value={form.coverSource} onChange={(event) => field("coverSource", event.target.value)} placeholder="例如：游戏官方网站 / 管理员拍摄" /></label>
+          <label>版权/授权说明<input value={form.coverCopyright} onChange={(event) => field("coverCopyright", event.target.value)} placeholder="例如：官方宣传素材，仅用于报道" /></label>
+        </div>
+        <p className="editor-help">封面会存入本站对象存储。使用封面时，来源与版权说明必须同时填写；移除只会解除文章引用，不会立即删除已上传文件。</p>
+      </fieldset>
       <div className="editor-row">
         <label>主要来源链接<input type="url" value={form.sourceUrl} onChange={(event) => field("sourceUrl", event.target.value)} placeholder="https://example.com/source" /></label>
         <label>来源名称<input value={form.sourceTitle} onChange={(event) => field("sourceTitle", event.target.value)} placeholder="官方公告或媒体名称" /></label>

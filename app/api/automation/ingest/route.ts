@@ -1,5 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
-import { prepareFeedItems } from "@/lib/feed";
+import { feedUrlWithLimit, prepareFeedItems } from "@/lib/feed";
 
 const DEFAULT_JSON_FEED = "https://www.inoreader.com/stream/user/1003743197/tag/%E6%B8%B8%E6%88%8F%E6%96%B0%E9%97%BB/view/json";
 
@@ -10,7 +10,7 @@ export async function POST() {
   const authorization = process.env.FEED_AUTHORIZATION;
   const headers: HeadersInit = { accept: "application/json" };
   if (authorization) headers.authorization = authorization;
-  const feedUrl = process.env.FEED_URL ?? DEFAULT_JSON_FEED;
+  const feedUrl = feedUrlWithLimit(process.env.FEED_URL ?? DEFAULT_JSON_FEED, 100);
   const job = await env.DB.prepare(
     "INSERT INTO automation_jobs (type, status, input_count, output_count, attempt, started_at) VALUES (?, ?, 0, 0, 1, CURRENT_TIMESTAMP)"
   ).bind("rss_ingest", "running").run();
@@ -30,14 +30,24 @@ export async function POST() {
     ));
     const results = statements.length ? await env.DB.batch(statements) : [];
     const imported = results.reduce((total, result) => total + Number(result.meta.changes ?? 0), 0);
+    const alreadyStored = Math.max(0, items.length - imported);
+    const newestPublishedAt = items
+      .map((item) => item.publishedAt)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
     await env.DB.prepare(
       "UPDATE automation_jobs SET status = ?, input_count = ?, output_count = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
     ).bind("succeeded", items.length, imported, jobId).run();
     return Response.json({
+      fetched: (data.items ?? []).length,
+      valid: items.length,
       imported,
+      alreadyStored,
       duplicates: items.filter((item) => item.status === "duplicate").length,
       requiresTranslation: items.filter((item) => item.status === "translation_required").length,
       review: items.filter((item) => item.status === "review").length,
+      newestPublishedAt,
       limit: 100,
     });
   } catch (error) {

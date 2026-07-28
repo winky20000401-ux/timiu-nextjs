@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canAutoPublish, hasVersionConflict, titleSimilarity } from "../lib/automation.ts";
-import { detectLanguage, prepareFeedItems, stripHtml } from "../lib/feed.ts";
+import { detectLanguage, feedUrlWithLimit, prepareFeedItems, stripHtml } from "../lib/feed.ts";
+import { mediaUrl, safeCoverKey } from "../lib/media.ts";
 import {
   constantTimeEqual,
   hashAuthValue,
@@ -67,6 +68,45 @@ test("RSS 入库限制数量并标记重复与待翻译", async () => {
   assert.equal(items[0].status, "review");
   assert.equal(items[1].status, "duplicate");
   assert.equal(items[2].status, "translation_required");
+});
+
+test("Inoreader 请求固定读取最多 100 条并保留其他参数", () => {
+  const url = feedUrlWithLimit("https://www.inoreader.com/stream/user/example/tag/news/view/json?foo=bar", 100);
+  assert.equal(new URL(url).searchParams.get("n"), "100");
+  assert.equal(new URL(url).searchParams.get("foo"), "bar");
+  assert.equal(feedUrlWithLimit("https://example.com/feed.json", 100), "https://example.com/feed.json");
+});
+
+test("RSS 入库结果区分新条目与数据库已存在条目", async () => {
+  const route = await readFile(new URL("../app/api/automation/ingest/route.ts", import.meta.url), "utf8");
+  const button = await readFile(new URL("../components/IngestButton.tsx", import.meta.url), "utf8");
+  assert.match(route, /alreadyStored/);
+  assert.match(route, /newestPublishedAt/);
+  assert.match(button, /没有新条目/);
+  assert.match(button, /已存在/);
+});
+
+test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {
+  const key = "covers/2026/07/2d37f302-70d2-43c3-a3e1-b35a499ab014.webp";
+  assert.equal(safeCoverKey(key), key);
+  assert.equal(mediaUrl(key), `/media/${key}`);
+  assert.equal(safeCoverKey("../secret.env"), "");
+  assert.equal(safeCoverKey("covers/2026/07/picture.svg"), "");
+});
+
+test("封面上传受管理员、类型、大小和版权字段保护", async () => {
+  const upload = await readFile(new URL("../app/api/admin/media/route.ts", import.meta.url), "utf8");
+  const create = await readFile(new URL("../app/api/admin/articles/route.ts", import.meta.url), "utf8");
+  const update = await readFile(new URL("../app/api/admin/articles/[id]/route.ts", import.meta.url), "utf8");
+  assert.match(upload, /getAdminUser/);
+  assert.match(upload, /5 \* 1024 \* 1024/);
+  assert.match(upload, /image\/jpeg/);
+  assert.match(upload, /env\.MEDIA\.put/);
+  for (const source of [create, update]) {
+    assert.match(source, /cover_object_key/);
+    assert.match(source, /coverCopyright/);
+    assert.match(source, /使用封面时必须填写图片来源和版权\/授权说明/);
+  }
 });
 
 test("管理员邮箱白名单会规范化大小写和空格", () => {

@@ -10,6 +10,9 @@ type PublishedArticleRow = {
   updated_at: string;
   content_chars: number;
   tags: string;
+  cover_object_key: string | null;
+  cover_source: string | null;
+  cover_copyright: string | null;
 };
 
 export async function getPublishedArticles(limit = 100): Promise<Article[]> {
@@ -18,6 +21,7 @@ export async function getPublishedArticles(limit = 100): Promise<Article[]> {
     const result = await env.DB.prepare(
       `SELECT a.id, a.title, a.slug, a.description, c.slug AS category,
        a.published_at, a.updated_at, length(a.content_html) AS content_chars,
+       a.cover_object_key, a.cover_source, a.cover_copyright,
        COALESCE((
          SELECT group_concat(t.name, '|||')
          FROM article_tags at
@@ -48,6 +52,9 @@ export async function getPublishedArticles(limit = 100): Promise<Article[]> {
         content: [],
         sourceName: "已核验来源",
         sourceUrl: `/article/${row.slug}`,
+        coverObjectKey: row.cover_object_key ?? undefined,
+        coverSource: row.cover_source ?? undefined,
+        coverCopyright: row.cover_copyright ?? undefined,
       }));
   } catch {
     return [];

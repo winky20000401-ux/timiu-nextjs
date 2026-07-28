@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 type ArticleRow = {
   id: number; title: string; subtitle: string; slug: string; seo_title: string;
   description: string; content_html: string; category_id: number | null; status: string;
+  cover_object_key: string | null; cover_source: string | null; cover_copyright: string | null;
 };
 
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,8 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
   const { env } = await import("cloudflare:workers");
   await ensureDefaultCategories(env.DB);
   const article = await env.DB.prepare(
-    "SELECT id, title, subtitle, slug, seo_title, description, content_html, category_id, status FROM articles WHERE id = ?"
+    `SELECT id, title, subtitle, slug, seo_title, description, content_html, category_id, status,
+     cover_object_key, cover_source, cover_copyright FROM articles WHERE id = ?`
   ).bind(articleId).first<ArticleRow>();
   if (!article) notFound();
   const [categories, tags, sources] = await Promise.all([
@@ -44,6 +46,9 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
         contentText: htmlToText(article.content_html), categoryId: article.category_id,
         tags: tags.results.map((tag) => tag.name).join(", "), status: article.status,
         sourceUrl: source?.url ?? "", sourceTitle: source?.title ?? "",
+        coverObjectKey: article.cover_object_key ?? "",
+        coverSource: article.cover_source ?? "",
+        coverCopyright: article.cover_copyright ?? "",
       }} categories={categories.results} />
     </div>
   </main>;

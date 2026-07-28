@@ -15,6 +15,18 @@ export type PreparedFeedItem = {
   rawJson: string;
 };
 
+export function feedUrlWithLimit(value: string, limit = 100) {
+  try {
+    const url = new URL(value);
+    if (url.hostname === "inoreader.com" || url.hostname.endsWith(".inoreader.com")) {
+      url.searchParams.set("n", String(Math.max(1, Math.min(limit, 100))));
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
 export function stripHtml(value: string) {
   return value
     .replace(/<script[\s\S]*?<\/script>/gi, " ")

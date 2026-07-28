@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
+import { safeCoverKey } from "@/lib/media";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -13,21 +14,33 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const contentText = String(body.contentText ?? "").trim().slice(0, 40_000);
   const categoryId = Number(body.categoryId);
   const sourceUrl = safeSourceUrl(String(body.sourceUrl ?? ""));
+  const requestedCoverKey = String(body.coverObjectKey ?? "").trim();
+  const coverObjectKey = safeCoverKey(requestedCoverKey);
+  const coverSource = String(body.coverSource ?? "").trim().slice(0, 300);
+  const coverCopyright = String(body.coverCopyright ?? "").trim().slice(0, 500);
   if (!Number.isInteger(id) || !title || !slug || !description || !contentText || !Number.isInteger(categoryId)) {
     return Response.json({ error: "标题、Slug、描述、栏目和正文均为必填项" }, { status: 400 });
   }
   if (String(body.sourceUrl ?? "").trim() && !sourceUrl) {
     return Response.json({ error: "来源链接必须是有效的 http 或 https 地址" }, { status: 400 });
   }
+  if (requestedCoverKey && !coverObjectKey) {
+    return Response.json({ error: "封面文件标识无效，请重新上传" }, { status: 400 });
+  }
+  if (coverObjectKey && (!coverSource || !coverCopyright)) {
+    return Response.json({ error: "使用封面时必须填写图片来源和版权/授权说明" }, { status: 400 });
+  }
   const contentHtml = contentText.split(/\n{2,}/).map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`).join("");
   const { env } = await import("cloudflare:workers");
   const result = await env.DB.prepare(
     `UPDATE articles SET title = ?, subtitle = ?, slug = ?, seo_title = ?, description = ?,
-     content_html = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived'`
+     content_html = ?, category_id = ?, cover_object_key = ?, cover_source = ?, cover_copyright = ?,
+     updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived'`
   ).bind(
     title, String(body.subtitle ?? "").trim().slice(0, 240), slug,
     String(body.seoTitle ?? title).trim().slice(0, 220), description,
-    contentHtml, categoryId, id,
+    contentHtml, categoryId, coverObjectKey || null,
+    coverObjectKey ? coverSource : null, coverObjectKey ? coverCopyright : null, id,
   ).run();
   if (!result.meta.changes) return Response.json({ error: "文章不存在或已归档" }, { status: 404 });
   await env.DB.prepare("DELETE FROM article_tags WHERE article_id = ?").bind(id).run();
