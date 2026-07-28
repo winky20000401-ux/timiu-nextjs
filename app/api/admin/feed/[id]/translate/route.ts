@@ -67,27 +67,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       body: JSON.stringify({
         model,
         input: buildTranslationPrompt(item),
-        generation_config: {
-          max_output_tokens: 2_048,
-          thinking_level: "minimal",
-        },
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              subtitle: { type: "string" },
-              description: { type: "string" },
-              paragraphs: { type: "array", items: { type: "string" } },
-              tags: { type: "array", items: { type: "string" } },
-              confidence: { type: "number" },
-              review_reason: { type: "string" },
-            },
-            required: ["title", "subtitle", "description", "paragraphs", "tags", "confidence", "review_reason"],
-          },
-        },
       }),
     });
     if (!response.ok) {

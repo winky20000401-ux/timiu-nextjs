@@ -59,7 +59,17 @@ export function extractInteractionText(data: InteractionResponse) {
 
 export function parseTranslationDraft(text: string): TranslationDraft | null {
   try {
-    const value = JSON.parse(text) as Partial<TranslationDraft>;
+    const normalized = text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+    const objectStart = normalized.indexOf("{");
+    const objectEnd = normalized.lastIndexOf("}");
+    const json = objectStart >= 0 && objectEnd > objectStart
+      ? normalized.slice(objectStart, objectEnd + 1)
+      : normalized;
+    const value = JSON.parse(json) as Partial<TranslationDraft>;
     const paragraphs = Array.isArray(value.paragraphs)
       ? value.paragraphs.map((paragraph) => String(paragraph).trim()).filter(Boolean).slice(0, 6)
       : [];
