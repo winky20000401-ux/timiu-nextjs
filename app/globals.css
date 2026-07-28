@@ -228,10 +228,16 @@ img { max-width: 100%; }
 .editor-form input, .editor-form textarea, .editor-form select { width: 100%; padding: 11px 12px; border: 1px solid #cfd7d2; background: #fbfcfb; color: #17202b; font: 400 14px/1.6 inherit; }
 .editor-form textarea { resize: vertical; }
 .editor-help { margin: -8px 0 18px; color: #73808c; font-size: 11px; }
+.publish-target { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: -4px 0 18px; padding: 13px 15px; border-left: 3px solid var(--lime); background: #f4f8e9; }
+.publish-target span { grid-row: 1 / 3; align-self: center; color: #71805e; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.publish-target strong { color: #3f5700; font-size: 13px; }
+.publish-target small { color: #697363; font-size: 10px; }
 .editor-row { display: grid; grid-template-columns: 1fr 220px; gap: 14px; }
 .editor-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
 .editor-buttons button { padding: 11px 14px; border: 1px solid #bfc8c2; background: white; cursor: pointer; font-weight: 700; }
 .editor-buttons .primary-button { border-color: var(--lime); background: var(--lime); }
+.editor-buttons .publish-button { border-color: #182633; background: #182633; color: white; }
+.editor-buttons .publish-button:hover { border-color: #587500; background: #587500; }
 .editor-message { color: #526d13; font-size: 12px; }
 .seo-preview { position: sticky; top: 120px; }
 .seo-preview > strong, .seo-preview > span { display: block; }

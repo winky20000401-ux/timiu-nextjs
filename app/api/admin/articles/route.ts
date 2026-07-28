@@ -7,20 +7,25 @@ export async function POST(request: Request) {
 
   const body = await request.json() as Record<string, unknown>;
   const title = String(body.title ?? "").trim().slice(0, 200);
-  const slug = safeSlug(String(body.slug ?? "") || title);
+  const requestedSlug = safeSlug(String(body.slug ?? "") || title);
   const description = String(body.description ?? "").trim().slice(0, 320);
   const contentText = String(body.contentText ?? "").trim().slice(0, 40_000);
   const categoryId = Number(body.categoryId);
   const sourceUrl = safeSourceUrl(String(body.sourceUrl ?? ""));
-  if (!title || !slug || !description || !contentText || !Number.isInteger(categoryId)) {
+  const publishNow = body.publishNow === true;
+  if (!title || !requestedSlug || !description || !contentText || !Number.isInteger(categoryId)) {
     return Response.json({ error: "标题、描述、栏目和正文均为必填项" }, { status: 400 });
   }
   if (String(body.sourceUrl ?? "").trim() && !sourceUrl) {
     return Response.json({ error: "来源链接必须是有效的 http 或 https 地址" }, { status: 400 });
   }
+  if (publishNow && !sourceUrl) {
+    return Response.json({ error: "直接发布前必须填写有效的主要来源链接" }, { status: 400 });
+  }
 
   const contentHtml = textToHtml(contentText);
   const { env } = await import("cloudflare:workers");
+  const slug = await findAvailableSlug(env.DB, requestedSlug);
   await env.DB.prepare(
     "INSERT OR IGNORE INTO users (email, display_name, role) VALUES (?, ?, ?)"
   ).bind(user.email, user.displayName, "admin").run();
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
     ).run();
     articleId = Number(article.meta.last_row_id);
   } catch {
-    return Response.json({ error: "URL Slug 已存在，请更换后重试" }, { status: 409 });
+    return Response.json({ error: "草稿创建失败，请稍后重试" }, { status: 409 });
   }
   if (!articleId) return Response.json({ error: "草稿创建失败" }, { status: 500 });
 
@@ -77,7 +82,22 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ ok: true, id: articleId, slug, status: "draft" }, { status: 201 });
+  if (publishNow) {
+    await env.DB.prepare(
+      `UPDATE articles SET status = 'published', requires_review = 0, review_reason = '',
+       published_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+    ).bind(articleId).run();
+    await env.DB.prepare(
+      "INSERT INTO publication_logs (article_id, user_id, action, from_status, to_status, note) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(articleId, dbUser?.id ?? null, "publish", "draft", "published", "管理员在新建文章页面审核并直接发布").run();
+  }
+
+  return Response.json({
+    ok: true,
+    id: articleId,
+    slug,
+    status: publishNow ? "published" : "draft",
+  }, { status: 201 });
 }
 
 function sameOrigin(request: Request) {
@@ -87,6 +107,18 @@ function sameOrigin(request: Request) {
 
 function safeSlug(value: string) {
   return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, "-").replace(/^-|-$/g, "").slice(0, 120);
+}
+
+async function findAvailableSlug(db: D1Database, requestedSlug: string) {
+  let candidate = requestedSlug;
+  for (let index = 1; index <= 100; index += 1) {
+    const existing = await db.prepare("SELECT 1 AS found FROM articles WHERE slug = ? LIMIT 1").bind(candidate).first<{ found: number }>();
+    if (!existing) return candidate;
+    const suffix = `-${index + 1}`;
+    candidate = `${requestedSlug.slice(0, 120 - suffix.length)}${suffix}`;
+  }
+  const suffix = `-${crypto.randomUUID().slice(0, 8)}`;
+  return `${requestedSlug.slice(0, 120 - suffix.length)}${suffix}`;
 }
 
 function safeSourceUrl(value: string) {
