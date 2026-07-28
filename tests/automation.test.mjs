@@ -105,3 +105,14 @@ test("独立管理员登录包含限流、短期验证码和安全 Cookie", asyn
   assert.match(verifyRoute, /sameSite: "lax"/);
   assert.match(verifyRoute, /secure: true/);
 });
+
+test("首页、搜索、RSS 与 sitemap 读取数据库已发布文章", async () => {
+  const files = await Promise.all([
+    "../app/page.tsx",
+    "../app/search/page.tsx",
+    "../app/rss.xml/route.ts",
+    "../app/sitemap.ts",
+  ].map((path) => readFile(new URL(path, import.meta.url), "utf8")));
+  for (const source of files) assert.match(source, /getVisibleArticles/);
+  assert.doesNotMatch(files[0], /articles\.slice/);
+});

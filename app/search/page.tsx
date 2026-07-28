@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PageFrame } from "@/components/SiteChrome";
-import { articles } from "@/lib/content";
+import { getVisibleArticles } from "@/lib/published-articles";
 
 export const metadata: Metadata = { title: "搜索", robots: { index: false, follow: true } };
+export const dynamic = "force-dynamic";
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
   const term = q.trim().toLowerCase();
-  const results = term ? articles.filter((item) => `${item.title} ${item.dek} ${item.tags.join(" ")}`.toLowerCase().includes(term)) : articles;
+  const visibleArticles = await getVisibleArticles();
+  const results = term ? visibleArticles.filter((item) => `${item.title} ${item.dek} ${item.tags.join(" ")}`.toLowerCase().includes(term)) : visibleArticles;
   return (
     <PageFrame>
       <main>
-        <header className="page-hero"><div className="shell page-hero-inner"><div><span className="section-label">SEARCH / TIMIU</span><h1>搜索文章</h1><p>从新闻、硬件与攻略演示内容中查找关键词。</p></div></div></header>
+        <header className="page-hero"><div className="shell page-hero-inner"><div><span className="section-label">SEARCH / TIMIU</span><h1>搜索文章</h1><p>从新闻、硬件与攻略内容中查找关键词。</p></div></div></header>
         <section className="shell listing">
           <div className="search-panel">
             <form className="search-form" action="/search">

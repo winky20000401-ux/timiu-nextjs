@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PageFrame } from "@/components/SiteChrome";
-import { articles, categoryMeta, getCategoryArticles } from "@/lib/content";
+import { categoryMeta } from "@/lib/content";
+import { getVisibleArticles } from "@/lib/published-articles";
 
-export default function Home() {
-  const lead = articles[0];
-  const sideLeads = articles.slice(1, 3);
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const visibleArticles = await getVisibleArticles();
+  const lead = visibleArticles[0];
+  const sideLeads = visibleArticles.slice(1, 3);
   return (
     <PageFrame>
       <main>
@@ -61,7 +65,7 @@ export default function Home() {
             <div><span className="section-index">01</span><h2>最新文章</h2></div>
             <Link href="/search">浏览全部 <span>→</span></Link>
           </div>
-          <div className="article-grid">{articles.slice(1, 4).map((article) => <ArticleCard article={article} key={article.slug} />)}</div>
+          <div className="article-grid">{visibleArticles.slice(0, 3).map((article) => <ArticleCard article={article} key={article.slug} />)}</div>
         </section>
 
         <section className="dark-band">
@@ -72,7 +76,7 @@ export default function Home() {
             </div>
             <div className="channel-grid">
               {Object.entries(categoryMeta).map(([key, meta]) => {
-                const picks = getCategoryArticles(key as keyof typeof categoryMeta);
+                const picks = visibleArticles.filter((article) => article.category === key);
                 return <div className="channel-column" key={key}>
                   <div className="channel-title"><h3>{meta.name}</h3><Link href={meta.href}>进入频道 →</Link></div>
                   {picks.slice(0, 2).map((article, index) => (
