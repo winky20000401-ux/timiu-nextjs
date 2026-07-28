@@ -8,6 +8,11 @@ export type TranslationDraft = {
   review_reason: string;
 };
 
+export type GeminiApiError = {
+  code: string;
+  message: string;
+};
+
 type InteractionResponse = {
   output_text?: string;
   steps?: Array<{
@@ -75,8 +80,53 @@ export function parseTranslationDraft(text: string): TranslationDraft | null {
   }
 }
 
+export function parseGeminiApiError(text: string, status: number): GeminiApiError {
+  try {
+    const value = JSON.parse(text) as { error?: { code?: unknown; message?: unknown; status?: unknown } };
+    const code = String(value.error?.code ?? value.error?.status ?? `http_${status}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "_")
+      .slice(0, 80);
+    return {
+      code: code || `http_${status}`,
+      message: sanitizeGeminiErrorMessage(String(value.error?.message ?? "")).slice(0, 300),
+    };
+  } catch {
+    return { code: `http_${status}`, message: "" };
+  }
+}
+
+export function geminiErrorForUser(status: number, code: string) {
+  const normalized = code.toLowerCase();
+  if (status === 401 || normalized === "authentication" || normalized === "unauthenticated") {
+    return "Gemini API 密钥无效，请在 Google AI Studio 检查或重新创建密钥";
+  }
+  if (status === 403 || normalized === "permission_denied") {
+    return "Gemini API 密钥没有调用权限，请检查密钥所属项目、地区限制或计费设置";
+  }
+  if (status === 429 || normalized === "rate_limit_exceeded" || normalized === "quota_exceeded" || normalized === "resource_exhausted") {
+    return "Gemini API 配额或速率已用尽，请检查 Google AI Studio 用量与计费后重试";
+  }
+  if (status === 404 || normalized === "model_not_found" || normalized === "not_found") {
+    return "当前 Gemini 模型不可用，请检查 GEMINI_MODEL 设置";
+  }
+  if (status === 400 || normalized === "invalid_request" || normalized === "parameter_unknown" || normalized === "invalid_argument") {
+    return "Gemini 请求格式不兼容，错误详情已安全记录";
+  }
+  if (status >= 500) return "Gemini 服务暂时不可用，请稍后重试";
+  return `Gemini 翻译失败（${normalized || `HTTP ${status}`}），错误已安全记录`;
+}
+
 export function paragraphsToHtml(paragraphs: string[]) {
   return paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+}
+
+function sanitizeGeminiErrorMessage(value: string) {
+  return value
+    .replace(/AIza[A-Za-z0-9_-]+/g, "[redacted]")
+    .replace(/[A-Za-z0-9_-]{48,}/g, "[redacted]")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeHtml(value: string) {

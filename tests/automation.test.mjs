@@ -157,7 +157,19 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   assert.match(route, /'review'/);
   assert.match(route, /ai_generation_logs/);
   assert.match(route, /processing_status = 'drafted'/);
+  assert.match(route, /parseGeminiApiError/);
+  assert.match(route, /geminiErrorForUser/);
+  assert.doesNotMatch(route, /minItems|maxItems/);
   assert.doesNotMatch(route, /status = 'published'/);
+});
+
+test("Gemini 错误处理会分类失败并遮盖可能的密钥", async () => {
+  const helper = await readFile(new URL("../lib/gemini-translation.ts", import.meta.url), "utf8");
+  assert.match(helper, /permission_denied/);
+  assert.match(helper, /quota_exceeded/);
+  assert.match(helper, /model_not_found/);
+  assert.match(helper, /AIza\[A-Za-z0-9_-\]\+/);
+  assert.match(helper, /错误详情已安全记录/);
 });
 
 test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {

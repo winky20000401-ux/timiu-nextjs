@@ -3,7 +3,9 @@ import { ensureDefaultCategories } from "@/lib/categories";
 import {
   buildTranslationPrompt,
   extractInteractionText,
+  geminiErrorForUser,
   paragraphsToHtml,
+  parseGeminiApiError,
   parseTranslationDraft,
 } from "@/lib/gemini-translation";
 
@@ -78,8 +80,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               title: { type: "string" },
               subtitle: { type: "string" },
               description: { type: "string" },
-              paragraphs: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
-              tags: { type: "array", items: { type: "string" }, maxItems: 8 },
+              paragraphs: { type: "array", items: { type: "string" } },
+              tags: { type: "array", items: { type: "string" } },
               confidence: { type: "number" },
               review_reason: { type: "string" },
             },
@@ -89,8 +91,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }),
     });
     if (!response.ok) {
-      await failJob(env.DB, jobId, `GEMINI_HTTP_${response.status}`);
-      return Response.json({ error: "Gemini 翻译失败，错误已记录，请稍后重试" }, { status: 502 });
+      const details = parseGeminiApiError(await response.text(), response.status);
+      await failJob(
+        env.DB,
+        jobId,
+        `GEMINI_HTTP_${response.status}:${details.code}${details.message ? `:${details.message}` : ""}`,
+      );
+      return Response.json(
+        { error: geminiErrorForUser(response.status, details.code), code: details.code },
+        { status: 502 },
+      );
     }
 
     const interaction = await response.json();
