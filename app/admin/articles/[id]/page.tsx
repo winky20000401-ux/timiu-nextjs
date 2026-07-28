@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdminUser } from "@/app/admin-auth";
 import { ArticleEditor } from "@/components/ArticleEditor";
+import { ensureDefaultCategories } from "@/lib/categories";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
   const articleId = Number(id);
   if (!Number.isInteger(articleId)) notFound();
   const { env } = await import("cloudflare:workers");
+  await ensureDefaultCategories(env.DB);
   const article = await env.DB.prepare(
     "SELECT id, title, subtitle, slug, seo_title, description, content_html, category_id, status FROM articles WHERE id = ?"
   ).bind(articleId).first<ArticleRow>();

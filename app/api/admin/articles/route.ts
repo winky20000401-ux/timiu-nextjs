@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
+import { ensureDefaultCategories } from "@/lib/categories";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
 
   const contentHtml = textToHtml(contentText);
   const { env } = await import("cloudflare:workers");
+  await ensureDefaultCategories(env.DB);
   const slug = await findAvailableSlug(env.DB, requestedSlug);
   await env.DB.prepare(
     "INSERT OR IGNORE INTO users (email, display_name, role) VALUES (?, ?, ?)"

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { requireAdminUser } from "@/app/admin-auth";
 import { ArticleEditor } from "@/components/ArticleEditor";
+import { ensureDefaultCategories } from "@/lib/categories";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewArticlePage() {
   await requireAdminUser("/admin/articles/new");
   const { env } = await import("cloudflare:workers");
+  await ensureDefaultCategories(env.DB);
   const categories = await env.DB.prepare(
     "SELECT id, name FROM categories ORDER BY sort_order, name"
   ).all<{ id: number; name: string }>();
