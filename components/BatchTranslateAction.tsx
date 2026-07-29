@@ -10,7 +10,9 @@ type BatchResult = {
 };
 
 export function BatchTranslateAction({ ids }: { ids: number[] }) {
-  const batchIds = ids.slice(0, 3);
+  const options = [3, 5, 10, 20];
+  const [requestedCount, setRequestedCount] = useState(3);
+  const batchIds = ids.slice(0, Math.min(requestedCount, 20));
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BatchResult[]>([]);
 
@@ -37,10 +39,21 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
   }
 
   return <div className="batch-action">
-    <button className="primary-button" type="button" onClick={runBatch} disabled={loading || batchIds.length === 0}>
-      {loading ? "正在批量生成…" : `批量生成 ${batchIds.length || 0} 篇 Gemini 草稿`}
-    </button>
-    <p className="muted">一次最多处理 3 条“需人工翻译”的 RSS，生成后全部进入人工审核，不会自动发布。</p>
+    <div className="batch-controls">
+      <label>生成数量
+        <select
+          value={requestedCount}
+          disabled={loading}
+          onChange={(event) => setRequestedCount(Number(event.target.value))}
+        >
+          {options.map((count) => <option value={count} key={count}>{count} 篇</option>)}
+        </select>
+      </label>
+      <button className="primary-button" type="button" onClick={runBatch} disabled={loading || batchIds.length === 0}>
+        {loading ? `正在生成 ${results.length}/${batchIds.length}…` : `批量生成 ${batchIds.length || 0} 篇 Gemini 草稿`}
+      </button>
+    </div>
+    <p className="muted">可选择 3 / 5 / 10 / 20 篇；系统只处理“需人工翻译”的 RSS，生成后全部进入人工审核，不会自动发布。</p>
     {results.length > 0 && <ol>
       {results.map((result) => <li key={result.id}>
         #{result.id}：

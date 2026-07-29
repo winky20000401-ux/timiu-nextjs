@@ -337,12 +337,15 @@ test("RSS 审核队列展示最近 Gemini 失败任务的脱敏原因", async ()
   assert.match(page, /sanitizeGeminiErrorMessage/);
 });
 
-test("RSS 审核队列支持一次生成三篇但全部保留人工审核", async () => {
+test("RSS 审核队列支持选择批量生成数量但全部保留人工审核", async () => {
   const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
   const component = await readFile(new URL("../components/BatchTranslateAction.tsx", import.meta.url), "utf8");
   assert.match(page, /BatchTranslateAction/);
   assert.match(page, /processing_status === "translation_required"/);
-  assert.match(component, /slice\(0, 3\)/);
+  assert.match(page, /slice\(0, 20\)/);
+  assert.match(component, /\[3, 5, 10, 20\]/);
+  assert.match(component, /requestedCount/);
+  assert.match(component, /Math\.min\(requestedCount, 20\)/);
   assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
   assert.match(component, /不会自动发布/);
   assert.doesNotMatch(component, /status = 'published'|\/status/);

@@ -57,7 +57,7 @@ export default async function FeedQueuePage() {
   ]);
   const batchTranslationIds = result.results
     .filter((item) => item.processing_status === "translation_required")
-    .slice(0, 3)
+    .slice(0, 20)
     .map((item) => item.id);
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>

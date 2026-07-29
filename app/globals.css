@@ -226,6 +226,9 @@ img { max-width: 100%; }
 .ingest-control .primary-button:disabled { cursor: wait; opacity: .65; }
 .ingest-control p { margin: 0; color: #5d6875; font-size: 12px; }
 .batch-action { display: grid; gap: 10px; align-items: start; }
+.batch-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.batch-controls label { display: grid; gap: 5px; color: #4c5965; font-size: 12px; font-weight: 800; }
+.batch-controls select { min-width: 100px; padding: 10px 12px; border: 1px solid #bac5be; background: white; color: #17202b; }
 .batch-action .primary-button { justify-self: start; border: 0; cursor: pointer; font-size: 12px; }
 .batch-action .primary-button:disabled { cursor: wait; opacity: .65; }
 .batch-action p { margin: 0; }
