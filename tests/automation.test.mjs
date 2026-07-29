@@ -198,6 +198,24 @@ test("Gemini RSS 翻译只使用给定来源并解析结构化中文草稿", () 
   assert.equal(parseTranslationDraft(legacyText)?.title, "工作室公布新游戏");
 });
 
+test("Gemini 审核提示不会进入文章正文，只保留在后台审核原因", () => {
+  const draft = parseTranslationDraft(JSON.stringify({
+    title: "某游戏公开新动向",
+    subtitle: "更多信息仍需核对",
+    description: "开发团队公开了新的游戏线索。",
+    paragraphs: [
+      "开发团队公开了这款游戏的新动向，现阶段 RSS 摘要显示相关内容集中在后续更新安排。",
+      "资料不足，需编辑查看原始来源。",
+    ],
+    tags: ["游戏新闻"],
+    confidence: 0.5,
+    review_reason: "仅依据 RSS 摘要生成",
+  }));
+  assert.equal(draft?.paragraphs.length, 1);
+  assert.doesNotMatch(paragraphsToHtml(draft?.paragraphs ?? []), /资料不足|原始来源/);
+  assert.match(draft?.review_reason ?? "", /资料不足，需编辑查看原始来源/);
+});
+
 test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发布", async () => {
   const route = await readFile(new URL("../app/api/admin/feed/[id]/translate/route.ts", import.meta.url), "utf8");
   assert.match(route, /RSS_TRANSLATION_ENABLED/);
@@ -371,6 +389,13 @@ test("封面上传受管理员、类型、大小和版权字段保护", async ()
     assert.match(source, /coverCopyright/);
     assert.match(source, /使用封面时必须填写图片来源和版权\/授权说明/);
   }
+});
+
+test("文章编辑页发布成功后自动回到工作台", async () => {
+  const editor = await readFile(new URL("../components/ArticleEditor.tsx", import.meta.url), "utf8");
+  assert.match(editor, /result\.status === "published" \? "\/admin"/);
+  assert.match(editor, /action === "publish"/);
+  assert.match(editor, /window\.location\.assign\("\/admin"\)/);
 });
 
 test("管理员邮箱白名单会规范化大小写和空格", () => {

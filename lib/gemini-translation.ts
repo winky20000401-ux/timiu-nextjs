@@ -64,6 +64,7 @@ export function buildTranslationPrompt(input: TranslationPromptInput, related: T
 - 如果主线索和相关 RSS 信息较充分，写成 600 至 1000 个中文字符的正式中文游戏媒体资讯。
 - 如果资料不足，写成 300 至 500 个中文字符的完整短稿，不要硬凑长文，并在 review_reason 说明“资料不足，需编辑查看原始来源”。
 - 这是待人工审核草稿，不得声称已经核验全文。
+- “资料不足”“需要人工核对”“需编辑查看原始来源”等审核提示只能写入 review_reason，绝对不要写入 paragraphs 正文。
 
 写作结构：
 - 标题要像中文游戏资讯标题，避免生硬直译。
@@ -120,10 +121,16 @@ export function parseTranslationDraft(text: string): TranslationDraft | null {
       ? normalized.slice(objectStart, objectEnd + 1)
       : normalized;
     const value = JSON.parse(json) as Partial<TranslationDraft>;
-    const paragraphs = Array.isArray(value.paragraphs)
+    const rawParagraphs = Array.isArray(value.paragraphs)
       ? value.paragraphs.map((paragraph) => String(paragraph).trim()).filter(Boolean).slice(0, 6)
       : [];
+    const auditNotes = rawParagraphs.filter(isAuditOnlyParagraph);
+    const paragraphs = rawParagraphs.filter((paragraph) => !isAuditOnlyParagraph(paragraph));
     if (!String(value.title ?? "").trim() || paragraphs.length === 0) return null;
+    const reviewReason = [
+      String(value.review_reason ?? "Gemini 翻译草稿需要人工核验").trim(),
+      ...auditNotes,
+    ].filter(Boolean).join("；");
     return {
       title: String(value.title).trim().slice(0, 200),
       subtitle: String(value.subtitle ?? "").trim().slice(0, 240),
@@ -133,7 +140,7 @@ export function parseTranslationDraft(text: string): TranslationDraft | null {
         ? Array.from(new Set(value.tags.map((tag) => String(tag).trim()).filter(Boolean))).slice(0, 8)
         : [],
       confidence: Math.max(0, Math.min(0.65, Number(value.confidence) || 0.4)),
-      review_reason: String(value.review_reason ?? "Gemini 翻译草稿需要人工核验").trim().slice(0, 500),
+      review_reason: reviewReason.slice(0, 500),
     };
   } catch {
     return null;
@@ -250,4 +257,10 @@ function escapeHtml(value: string) {
 function positiveInteger(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
+}
+
+function isAuditOnlyParagraph(value: string) {
+  const normalized = value.replace(/\s+/g, "");
+  if (normalized.length > 120) return false;
+  return /资料不足|素材不足|信息不足|需要人工|需人工|人工核对|人工审核|编辑查看|编辑核对|原始来源|原始资料|来源核验|待核验|待审核/.test(normalized);
 }

@@ -86,9 +86,7 @@ export function ArticleEditor({ article, categories }: { article: ArticleForm; c
       return;
     }
     if (article.id === null && result.id) {
-      window.location.assign(result.status === "published" && result.slug
-        ? `/article/${result.slug}`
-        : `/admin/articles/${result.id}`);
+      window.location.assign(result.status === "published" ? "/admin" : `/admin/articles/${result.id}`);
       return;
     }
     setMessage("草稿已保存");
@@ -107,6 +105,9 @@ export function ArticleEditor({ article, categories }: { article: ArticleForm; c
     });
     const result = await response.json() as { error?: string; status?: string };
     if (result.error) setMessage(result.error);
+    else if (action === "publish") {
+      window.location.assign("/admin");
+    }
     else {
       setForm((current) => ({ ...current, status: result.status ?? current.status }));
       setMessage(`状态已更新为 ${result.status}`);
