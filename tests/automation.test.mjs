@@ -398,6 +398,13 @@ test("文章编辑页发布成功后自动回到工作台", async () => {
   assert.match(editor, /window\.location\.assign\("\/admin"\)/);
 });
 
+test("审核列表快速发布成功后也自动回到工作台", async () => {
+  const actions = await readFile(new URL("../components/QuickArticleActions.tsx", import.meta.url), "utf8");
+  assert.match(actions, /action === "publish"/);
+  assert.match(actions, /window\.location\.assign\("\/admin"\)/);
+  assert.match(actions, /window\.location\.reload\(\)/);
+});
+
 test("管理员邮箱白名单会规范化大小写和空格", () => {
   assert.equal(normalizeEmail(" Admin@Example.COM "), "admin@example.com");
   assert.equal(isAllowedAdminEmail(" ADMIN@example.com ", "owner@example.com, admin@example.com"), true);

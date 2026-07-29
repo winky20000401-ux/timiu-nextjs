@@ -23,6 +23,10 @@ export function QuickArticleActions({ id, status }: { id: number; status: string
       setMessage(result.error ?? `${label}失败`);
       return;
     }
+    if (action === "publish") {
+      window.location.assign("/admin");
+      return;
+    }
     window.location.reload();
   }
 
