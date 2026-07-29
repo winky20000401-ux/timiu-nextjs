@@ -5,10 +5,14 @@ import { detectLanguage, feedUrlWithLimit, prepareFeedItems, stripHtml } from ".
 import { mediaUrl, safeCoverKey } from "../lib/media.ts";
 import {
   buildTranslationPrompt,
+  estimateGeminiCostMicrousd,
   extractInteractionText,
+  formatMicrousd,
+  geminiRequestUrl,
   geminiErrorForUser,
   paragraphsToHtml,
   parseGeminiApiError,
+  parseGeminiUsage,
   parseTranslationDraft,
   sanitizeGeminiErrorMessage,
 } from "../lib/gemini-translation.ts";
@@ -164,8 +168,10 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   const route = await readFile(new URL("../app/api/admin/feed/[id]/translate/route.ts", import.meta.url), "utf8");
   assert.match(route, /RSS_TRANSLATION_ENABLED/);
   assert.match(route, /GEMINI_API_KEY/);
-  assert.match(route, /gemini-3\.6-flash/);
-  assert.match(route, /:generateContent/);
+  assert.match(route, /gemini-3\.5-flash-lite/);
+  assert.match(route, /GEMINI_RELAY_URL/);
+  assert.match(route, /GEMINI_RELAY_SECRET/);
+  assert.match(route, /geminiRequestUrl/);
   assert.match(route, /contents: \[\{/);
   assert.doesNotMatch(route, /response_format|generation_config/);
   assert.match(route, /status,\s*confidence, requires_review/);
@@ -176,6 +182,33 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   assert.match(route, /geminiErrorForUser/);
   assert.doesNotMatch(route, /minItems|maxItems/);
   assert.doesNotMatch(route, /status = 'published'/);
+});
+
+test("Gemini 代理地址、Token 用量与费用估算安全且可复核", () => {
+  assert.equal(
+    geminiRequestUrl("models/gemini-3.5-flash-lite", "https://relay.example.com/"),
+    "https://relay.example.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+  );
+  assert.throws(() => geminiRequestUrl("gemini-3.5-flash-lite", "http://relay.example.com"), /HTTPS/);
+  const usage = parseGeminiUsage({
+    usageMetadata: {
+      promptTokenCount: 800,
+      candidatesTokenCount: 600,
+      thoughtsTokenCount: 100,
+      totalTokenCount: 1500,
+    },
+  });
+  assert.deepEqual(usage, { inputTokens: 800, outputTokens: 700, totalTokens: 1500 });
+  assert.equal(estimateGeminiCostMicrousd("gemini-3.5-flash-lite", usage), 1990);
+  assert.equal(formatMicrousd(1990), "$0.0020");
+});
+
+test("Cloud Run Gemini 代理限制路径、授权和请求大小", async () => {
+  const relay = await import("../services/gemini-relay/relay.mjs");
+  assert.equal(relay.isAllowedPath("/v1beta/models/gemini-3.5-flash-lite:generateContent"), true);
+  assert.equal(relay.isAllowedPath("/v1beta/models/../../secret:generateContent"), false);
+  assert.equal(relay.isAuthorized("Bearer worker-secret", "worker-secret"), true);
+  assert.equal(relay.isAuthorized("Bearer wrong", "worker-secret"), false);
 });
 
 test("Gemini 错误处理会分类失败并遮盖可能的密钥", async () => {

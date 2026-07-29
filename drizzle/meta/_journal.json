@@ -22,6 +22,13 @@
       "when": 1785194340687,
       "tag": "0002_panoramic_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785211849817,
+      "tag": "0003_light_mac_gargan",
+      "breakpoints": true
     }
   ]
 }

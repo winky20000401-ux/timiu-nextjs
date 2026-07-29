@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdminUser } from "@/app/admin-auth";
 import { FeedQueueAction } from "@/components/FeedQueueAction";
-import { sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
+import { formatMicrousd, sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +21,18 @@ type FailedTranslationJob = {
   finished_at: string | null;
 };
 
+type TranslationUsage = {
+  jobs: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  estimated_cost_microusd: number;
+};
+
 export default async function FeedQueuePage() {
   await requireAdminUser("/admin/feed");
   const { env } = await import("cloudflare:workers");
-  const [result, failedJobs] = await Promise.all([
+  const [result, failedJobs, usage] = await Promise.all([
     env.DB.prepare(
       `SELECT id, title, url, summary, published_at, processing_status
        FROM feed_items ORDER BY created_at DESC LIMIT 100`
@@ -35,6 +43,16 @@ export default async function FeedQueuePage() {
        WHERE type = 'rss_translation' AND status = 'failed'
        ORDER BY id DESC LIMIT 10`
     ).all<FailedTranslationJob>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS jobs,
+              COALESCE(SUM(input_tokens), 0) AS input_tokens,
+              COALESCE(SUM(output_tokens), 0) AS output_tokens,
+              COALESCE(SUM(total_tokens), 0) AS total_tokens,
+              COALESCE(SUM(estimated_cost_microusd), 0) AS estimated_cost_microusd
+       FROM automation_jobs
+       WHERE type = 'rss_translation' AND status = 'succeeded'
+         AND finished_at >= datetime('now', '-30 days')`
+    ).first<TranslationUsage>(),
   ]);
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
@@ -45,6 +63,15 @@ export default async function FeedQueuePage() {
         <li><strong>2. 生成草稿</strong><span>中文线索生成短讯草稿；外文线索可用 Gemini 生成中文草稿。</span></li>
         <li><strong>3. 人工编辑</strong><span>补充自然中文、栏目、标签、封面和来源后再手动发布。</span></li>
       </ol>
+      <section className="admin-card">
+        <h2>近 30 天 Gemini 用量</h2>
+        <p className="muted">
+          已完成 {usage?.jobs ?? 0} 篇 · 输入 {(usage?.input_tokens ?? 0).toLocaleString()} Token ·
+          输出 {(usage?.output_tokens ?? 0).toLocaleString()} Token ·
+          估算费用 {formatMicrousd(usage?.estimated_cost_microusd ?? 0)}
+        </p>
+        <p className="muted">费用按当前模型公开单价估算，最终金额以 Google 账单为准。</p>
+      </section>
       <section className="admin-card">
         {result.results.length === 0 ? <p className="muted">队列为空，请先返回工作台读取最新 RSS。</p> :
           <table className="admin-table queue-table">

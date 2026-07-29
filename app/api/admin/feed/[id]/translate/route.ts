@@ -3,9 +3,12 @@ import { ensureDefaultCategories } from "@/lib/categories";
 import {
   buildTranslationPrompt,
   extractInteractionText,
+  estimateGeminiCostMicrousd,
   geminiErrorForUser,
+  geminiRequestUrl,
   paragraphsToHtml,
   parseGeminiApiError,
+  parseGeminiUsage,
   parseTranslationDraft,
 } from "@/lib/gemini-translation";
 
@@ -49,7 +52,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const existing = await env.DB.prepare("SELECT id FROM articles WHERE slug = ?").bind(slug).first<{ id: number }>();
   if (existing) return Response.json({ error: "该 RSS 条目已经创建过草稿", id: existing.id }, { status: 409 });
 
-  const model = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
+  const model = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
   const job = await env.DB.prepare(
     `INSERT INTO automation_jobs
      (type, status, provider, model, input_count, output_count, attempt, started_at)
@@ -58,14 +61,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const jobId = Number(job.meta.last_row_id);
 
   try {
-    const modelPath = model.replace(/^models\//, "");
+    const relayUrl = process.env.GEMINI_RELAY_URL ?? "";
+    const relaySecret = process.env.GEMINI_RELAY_SECRET ?? "";
+    if (relayUrl && !relaySecret) throw new Error("GEMINI_RELAY_SECRET_MISSING");
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelPath)}:generateContent`,
+      geminiRequestUrl(model, relayUrl),
       {
       method: "POST",
       headers: {
         "x-goog-api-key": process.env.GEMINI_API_KEY,
         "content-type": "application/json",
+        ...(relayUrl ? { authorization: `Bearer ${relaySecret}` } : {}),
       },
       body: JSON.stringify({
         contents: [{
@@ -88,6 +94,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const interaction = await response.json();
+    const usage = parseGeminiUsage(interaction);
+    const estimatedCostMicrousd = estimateGeminiCostMicrousd(model, usage);
     const draft = parseTranslationDraft(extractInteractionText(interaction));
     if (!draft) {
       await failJob(env.DB, jobId, "GEMINI_INVALID_OUTPUT");
@@ -141,8 +149,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await env.DB.batch([
       env.DB.prepare("UPDATE feed_items SET processing_status = 'drafted', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(id),
       env.DB.prepare(
-        "UPDATE automation_jobs SET status = 'succeeded', output_count = 1, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
-      ).bind(jobId),
+        `UPDATE automation_jobs
+         SET status = 'succeeded', output_count = 1, input_tokens = ?, output_tokens = ?,
+             total_tokens = ?, estimated_cost_microusd = ?,
+             finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`
+      ).bind(usage.inputTokens, usage.outputTokens, usage.totalTokens, estimatedCostMicrousd, jobId),
       env.DB.prepare(
         `INSERT INTO ai_generation_logs
          (article_id, job_id, provider, model, prompt_version, source_count, output_chars, requires_review)
@@ -150,7 +162,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ).bind(articleId, jobId, model, draft.paragraphs.join("").length),
     ]);
 
-    return Response.json({ id: articleId, title: draft.title, status: "review", provider: "gemini", model });
+    return Response.json({
+      id: articleId,
+      title: draft.title,
+      status: "review",
+      provider: "gemini",
+      model,
+      usage,
+      estimatedCostMicrousd,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 200) : "RSS_TRANSLATION_UNKNOWN_ERROR";
     await failJob(env.DB, jobId, message);

@@ -15,6 +15,12 @@ export type GeminiApiError = {
 
 type InteractionResponse = {
   output_text?: string;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+  };
   steps?: Array<{
     type?: string;
     content?: Array<{ type?: string; text?: string }>;
@@ -24,6 +30,12 @@ type InteractionResponse = {
       parts?: Array<{ text?: string }>;
     };
   }>;
+};
+
+export type GeminiUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
 };
 
 export function buildTranslationPrompt(input: { title: string; summary: string; url: string }) {
@@ -116,6 +128,49 @@ export function parseGeminiApiError(text: string, status: number): GeminiApiErro
   }
 }
 
+export function geminiRequestUrl(model: string, relayUrl = "") {
+  const modelPath = model.replace(/^models\//, "");
+  const path = `/v1beta/models/${encodeURIComponent(modelPath)}:generateContent`;
+  if (!relayUrl.trim()) return `https://generativelanguage.googleapis.com${path}`;
+  const relay = new URL(relayUrl);
+  if (relay.protocol !== "https:" && relay.hostname !== "localhost" && relay.hostname !== "127.0.0.1") {
+    throw new Error("GEMINI_RELAY_URL_MUST_USE_HTTPS");
+  }
+  relay.pathname = `${relay.pathname.replace(/\/$/, "")}${path}`;
+  relay.search = "";
+  relay.hash = "";
+  return relay.toString();
+}
+
+export function parseGeminiUsage(data: InteractionResponse): GeminiUsage {
+  const inputTokens = positiveInteger(data.usageMetadata?.promptTokenCount);
+  const candidateTokens = positiveInteger(data.usageMetadata?.candidatesTokenCount);
+  const thoughtTokens = positiveInteger(data.usageMetadata?.thoughtsTokenCount);
+  const reportedTotal = positiveInteger(data.usageMetadata?.totalTokenCount);
+  const outputTokens = Math.max(candidateTokens + thoughtTokens, reportedTotal - inputTokens, 0);
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: Math.max(reportedTotal, inputTokens + outputTokens),
+  };
+}
+
+export function estimateGeminiCostMicrousd(model: string, usage: GeminiUsage) {
+  const normalized = model.replace(/^models\//, "").toLowerCase();
+  const rates = normalized.includes("flash-lite")
+    ? { input: 0.3, output: 2.5 }
+    : normalized.includes("3.6-flash")
+      ? { input: 1.5, output: 7.5 }
+      : { input: 1.5, output: 9 };
+  return Math.max(0, Math.round(
+    usage.inputTokens * rates.input + usage.outputTokens * rates.output,
+  ));
+}
+
+export function formatMicrousd(value: number) {
+  return `$${(Math.max(0, value) / 1_000_000).toFixed(4)}`;
+}
+
 export function geminiErrorForUser(status: number, code: string, message = "") {
   const normalized = code.toLowerCase();
   const detail = sanitizeGeminiErrorMessage(message);
@@ -162,4 +217,9 @@ function escapeHtml(value: string) {
     '"': "&quot;",
     "'": "&#39;",
   })[char] ?? char);
+}
+
+function positiveInteger(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
 }
