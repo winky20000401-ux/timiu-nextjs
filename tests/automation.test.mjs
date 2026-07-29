@@ -189,6 +189,10 @@ test("Gemini 代理地址、Token 用量与费用估算安全且可复核", () =
     geminiRequestUrl("models/gemini-3.5-flash-lite", "https://relay.example.com/"),
     "https://relay.example.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
   );
+  assert.equal(
+    geminiRequestUrl("models/gemini-3.5-flash-lite", "https://relay.example.com/api"),
+    "https://relay.example.com/api/v1beta/models/gemini-3.5-flash-lite:generateContent",
+  );
   assert.throws(() => geminiRequestUrl("gemini-3.5-flash-lite", "http://relay.example.com"), /HTTPS/);
   const usage = parseGeminiUsage({
     usageMetadata: {
@@ -203,12 +207,29 @@ test("Gemini 代理地址、Token 用量与费用估算安全且可复核", () =
   assert.equal(formatMicrousd(1990), "$0.0020");
 });
 
-test("Cloud Run Gemini 代理限制路径、授权和请求大小", async () => {
+test("Gemini 代理限制路径、授权和请求大小", async () => {
   const relay = await import("../services/gemini-relay/relay.mjs");
   assert.equal(relay.isAllowedPath("/v1beta/models/gemini-3.5-flash-lite:generateContent"), true);
   assert.equal(relay.isAllowedPath("/v1beta/models/../../secret:generateContent"), false);
   assert.equal(relay.isAuthorized("Bearer worker-secret", "worker-secret"), true);
   assert.equal(relay.isAuthorized("Bearer wrong", "worker-secret"), false);
+});
+
+test("Vercel Gemini 代理可作为独立中转服务部署", async () => {
+  const relay = await import("../services/vercel-gemini-relay/relay.mjs");
+  const handler = await readFile(
+    new URL("../services/vercel-gemini-relay/api/v1beta/models/[model].mjs", import.meta.url),
+    "utf8",
+  );
+  const config = await readFile(new URL("../services/vercel-gemini-relay/vercel.json", import.meta.url), "utf8");
+  assert.equal(relay.isAllowedPath("/v1beta/models/gemini-3.5-flash-lite:generateContent"), true);
+  assert.equal(relay.isAllowedPath("/api/v1beta/models/gemini-3.5-flash-lite:generateContent"), false);
+  assert.equal(relay.isAuthorized("Bearer relay-secret", "relay-secret"), true);
+  assert.equal(handler.includes("pathname.replace(/^\\/api/, \"\")"), true);
+  assert.match(handler, /RELAY_SHARED_SECRET/);
+  assert.match(handler, /x-goog-api-key/);
+  assert.match(handler, /generativelanguage\.googleapis\.com/);
+  assert.match(config, /maxDuration/);
 });
 
 test("Gemini 错误处理会分类失败并遮盖可能的密钥", async () => {
