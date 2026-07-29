@@ -319,6 +319,25 @@ test("RSS 审核队列展示最近 Gemini 失败任务的脱敏原因", async ()
   assert.match(page, /sanitizeGeminiErrorMessage/);
 });
 
+test("RSS 审核队列支持一次生成三篇但全部保留人工审核", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const component = await readFile(new URL("../components/BatchTranslateAction.tsx", import.meta.url), "utf8");
+  assert.match(page, /BatchTranslateAction/);
+  assert.match(page, /processing_status === "translation_required"/);
+  assert.match(component, /slice\(0, 3\)/);
+  assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
+  assert.match(component, /不会自动发布/);
+  assert.doesNotMatch(component, /status = 'published'|\/status/);
+});
+
+test("首页焦点和侧栏文章优先展示真实封面图", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /lead\.coverObjectKey/);
+  assert.match(page, /mediaUrl\(lead\.coverObjectKey\)/);
+  assert.match(page, /article\.coverObjectKey/);
+  assert.match(page, /article-cover-image/);
+});
+
 test("后台提供自动发布开关但不绕过安全发布条件", async () => {
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/admin/settings/auto-publish/route.ts", import.meta.url), "utf8");

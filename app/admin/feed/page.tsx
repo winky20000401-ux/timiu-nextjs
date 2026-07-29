@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdminUser } from "@/app/admin-auth";
+import { BatchTranslateAction } from "@/components/BatchTranslateAction";
 import { FeedQueueAction } from "@/components/FeedQueueAction";
 import { formatMicrousd, sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
 
@@ -54,6 +55,10 @@ export default async function FeedQueuePage() {
          AND finished_at >= datetime('now', '-30 days')`
     ).first<TranslationUsage>(),
   ]);
+  const batchTranslationIds = result.results
+    .filter((item) => item.processing_status === "translation_required")
+    .slice(0, 3)
+    .map((item) => item.id);
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
     <div className="shell admin-page">
@@ -71,6 +76,10 @@ export default async function FeedQueuePage() {
           估算费用 {formatMicrousd(usage?.estimated_cost_microusd ?? 0)}
         </p>
         <p className="muted">费用按当前模型公开单价估算，最终金额以 Google 账单为准。</p>
+      </section>
+      <section className="admin-card">
+        <h2>批量生成草稿</h2>
+        <BatchTranslateAction ids={batchTranslationIds} />
       </section>
       <section className="admin-card">
         {result.results.length === 0 ? <p className="muted">队列为空，请先返回工作台读取最新 RSS。</p> :

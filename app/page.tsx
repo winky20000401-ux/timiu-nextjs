@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArticleCard } from "@/components/ArticleCard";
 import { PageFrame } from "@/components/SiteChrome";
 import { categoryMeta } from "@/lib/content";
+import { mediaUrl } from "@/lib/media";
 import { getVisibleArticles } from "@/lib/published-articles";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +25,14 @@ export default async function Home() {
           <div className="lead-grid">
             <article className="lead-card">
               <Link className={`lead-art cover-${lead.tone}`} href={`/article/${lead.slug}`}>
-                <div className="grid-lines" aria-hidden="true" />
-                <span className="lead-mark">TIMIU / 01</span>
-                <strong>NEWS<br />ROOM</strong>
-                <small>编辑流程公开说明</small>
+                {lead.coverObjectKey
+                  ? <img className="lead-cover-image" src={mediaUrl(lead.coverObjectKey)} alt="" />
+                  : <>
+                    <div className="grid-lines" aria-hidden="true" />
+                    <span className="lead-mark">TIMIU / 01</span>
+                    <strong>NEWS<br />ROOM</strong>
+                    <small>编辑流程公开说明</small>
+                  </>}
               </Link>
               <div className="lead-copy">
                 <div className="eyebrow"><span>{lead.kicker}</span><span>6 MIN READ</span></div>
@@ -39,7 +44,11 @@ export default async function Home() {
             <div className="side-leads">
               {sideLeads.map((article, index) => (
                 <article key={article.slug} className="side-lead">
-                  <div className={`mini-art cover-${article.tone}`}><span>0{index + 2}</span><b>T</b></div>
+                  <div className={`mini-art cover-${article.tone}`}>
+                    {article.coverObjectKey
+                      ? <img className="article-cover-image" src={mediaUrl(article.coverObjectKey)} alt="" />
+                      : <><span>0{index + 2}</span><b>T</b></>}
+                  </div>
                   <div>
                     <span className="section-label">{article.kicker}</span>
                     <h3><Link href={`/article/${article.slug}`}>{article.title}</Link></h3>

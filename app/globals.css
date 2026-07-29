@@ -67,6 +67,8 @@ img { max-width: 100%; }
 .lead-art small, .lead-mark { position: relative; font: 700 10px Arial, sans-serif; letter-spacing: .18em; text-transform: uppercase; }
 .lead-mark { position: absolute; top: 30px; left: 34px; }
 .lead-art small { margin-top: 18px; color: var(--lime); }
+.lead-cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lead-art:has(.lead-cover-image)::after { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(7 17 31 / .08), rgb(7 17 31 / .48)); content: ""; }
 .lead-copy { display: flex; flex-direction: column; justify-content: center; padding: clamp(28px, 4vw, 48px); }
 .eyebrow { display: flex; gap: 14px; color: #6d7886; font: 750 10px Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .eyebrow > :first-child { color: #506119; }
@@ -223,6 +225,12 @@ img { max-width: 100%; }
 .ingest-control .primary-button { border: 0; cursor: pointer; font-size: 12px; }
 .ingest-control .primary-button:disabled { cursor: wait; opacity: .65; }
 .ingest-control p { margin: 0; color: #5d6875; font-size: 12px; }
+.batch-action { display: grid; gap: 10px; align-items: start; }
+.batch-action .primary-button { justify-self: start; border: 0; cursor: pointer; font-size: 12px; }
+.batch-action .primary-button:disabled { cursor: wait; opacity: .65; }
+.batch-action p { margin: 0; }
+.batch-action ol { margin: 4px 0 0; padding-left: 20px; color: #5d6875; font-size: 12px; }
+.batch-action a { color: #486800; text-decoration: underline; }
 .admin-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
 .admin-create-button { margin-top: 18px; border: 0; }
 .secondary-button { display: inline-flex; margin-top: 18px; padding: 11px 15px; border: 1px solid #bfc8c2; background: white; color: #2f3c49; font-size: 12px; font-weight: 700; }
