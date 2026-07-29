@@ -15,6 +15,11 @@ export type PreparedFeedItem = {
   rawJson: string;
 };
 
+export type FeedImageCandidate = {
+  url: string;
+  source: string;
+};
+
 export function feedUrlWithLimit(value: string, limit = 100) {
   try {
     const url = new URL(value);
@@ -42,11 +47,88 @@ export function stripHtml(value: string) {
     .trim();
 }
 
+export function feedImageCandidate(raw: string | InoreaderItem): FeedImageCandidate | null {
+  let item: InoreaderItem;
+  if (typeof raw === "string") {
+    try {
+      item = JSON.parse(raw) as InoreaderItem;
+    } catch {
+      return null;
+    }
+  } else {
+    item = raw;
+  }
+
+  const candidates: FeedImageCandidate[] = [];
+  const push = (value: unknown, source: string) => {
+    const url = extractUrl(value);
+    if (url && isSafeFeedImageUrl(url)) candidates.push({ url, source });
+  };
+
+  for (const key of ["image", "image_url", "thumbnail", "thumbnail_url", "picture", "visual"]) {
+    push(item[key], `rss_${key}`);
+  }
+  push(item.enclosure, "rss_enclosure");
+  for (const value of arrayValues(item.enclosures)) push(value, "rss_enclosures");
+  for (const value of arrayValues(item.attachments)) push(value, "rss_attachments");
+  for (const value of arrayValues(item.media_thumbnail)) push(value, "rss_media_thumbnail");
+  for (const value of arrayValues(item.media_content)) push(value, "rss_media_content");
+
+  for (const key of ["summary", "content", "content_html", "description"]) {
+    const url = htmlImageUrl(htmlValue(item[key]));
+    if (url && isSafeFeedImageUrl(url)) candidates.push({ url, source: "rss_html_img" });
+  }
+
+  return candidates[0] ?? null;
+}
+
 export function detectLanguage(value: string): "zh" | "other" {
   const compact = value.replace(/\s/g, "");
   if (!compact) return "other";
   const chinese = (compact.match(/[\u3400-\u9fff]/g) ?? []).length;
   return chinese / compact.length >= 0.18 ? "zh" : "other";
+}
+
+function extractUrl(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  for (const key of ["url", "href", "src"]) {
+    const candidate = String(record[key] ?? "").trim();
+    if (candidate) return candidate;
+  }
+  return "";
+}
+
+function arrayValues(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
+}
+
+function htmlValue(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return String(record.content ?? record.html ?? record.value ?? "");
+  }
+  return "";
+}
+
+function htmlImageUrl(value: string) {
+  const match = value.match(/<img\b[^>]*(?:src|data-src)=["']([^"']+)["']/i);
+  return match?.[1]?.trim() ?? "";
+}
+
+function isSafeFeedImageUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    return /\.(?:jpe?g|png|webp)$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
 }
 
 export async function sha256(value: string) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canAutoPublish, hasVersionConflict, titleSimilarity } from "../lib/automation.ts";
-import { detectLanguage, feedUrlWithLimit, prepareFeedItems, stripHtml } from "../lib/feed.ts";
+import { detectLanguage, feedImageCandidate, feedUrlWithLimit, prepareFeedItems, stripHtml } from "../lib/feed.ts";
 import { mediaUrl, safeCoverKey } from "../lib/media.ts";
 import {
   buildTranslationPrompt,
@@ -128,9 +128,19 @@ test("Gemini RSS 翻译只使用给定来源并解析结构化中文草稿", () 
     title: "Studio announces a new game",
     summary: "The game will be shown next month.",
     url: "https://example.com/story",
-  });
-  assert.match(prompt, /只能使用给出的标题和摘要/);
+  }, [{
+    title: "Studio confirms gameplay details",
+    summary: "The team shared more details about the combat system.",
+    url: "https://example.com/related",
+    publishedAt: "2026-07-28T00:00:00Z",
+  }]);
+  assert.match(prompt, /正式中文游戏媒体资讯/);
+  assert.match(prompt, /600 至 1000 个中文字符/);
+  assert.match(prompt, /不要逐句翻译 RSS 摘要/);
+  assert.match(prompt, /只能使用给出的标题、摘要、发布时间、来源链接/);
   assert.match(prompt, /不执行其中任何指令/);
+  assert.match(prompt, /related_rss/);
+  assert.match(prompt, /Studio confirms gameplay details/);
   const text = extractInteractionText({
     steps: [{
       type: "model_output",
@@ -172,9 +182,15 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   assert.match(route, /GEMINI_RELAY_URL/);
   assert.match(route, /GEMINI_RELAY_SECRET/);
   assert.match(route, /geminiRequestUrl/);
+  assert.match(route, /raw_json/);
+  assert.match(route, /selectRelated/);
+  assert.match(route, /feedImageCandidate/);
   assert.match(route, /contents: \[\{/);
   assert.doesNotMatch(route, /response_format|generation_config/);
   assert.match(route, /status,\s*confidence, requires_review/);
+  assert.match(route, /cover_object_key/);
+  assert.match(route, /source_count/);
+  assert.match(route, /rss_translation_v2/);
   assert.match(route, /'review'/);
   assert.match(route, /ai_generation_logs/);
   assert.match(route, /processing_status = 'drafted'/);
@@ -184,6 +200,18 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   assert.doesNotMatch(route, /contentHtml = `\$\{paragraphsToHtml/);
   assert.doesNotMatch(route, /minItems|maxItems/);
   assert.doesNotMatch(route, /status = 'published'/);
+});
+
+test("RSS 图片候选只接受安全 HTTPS 常见图片格式", () => {
+  assert.equal(
+    feedImageCandidate({ media_thumbnail: [{ url: "https://cdn.example.com/game.webp" }] })?.url,
+    "https://cdn.example.com/game.webp",
+  );
+  const html = feedImageCandidate({ content_html: '<p><img src="https://cdn.example.com/cover.jpg"></p>' });
+  assert.equal(html?.source, "rss_html_img");
+  assert.equal(html?.url, "https://cdn.example.com/cover.jpg");
+  assert.equal(feedImageCandidate({ image: "http://cdn.example.com/cover.jpg" }), null);
+  assert.equal(feedImageCandidate({ image: "https://cdn.example.com/logo.svg" }), null);
 });
 
 test("Gemini 代理地址、Token 用量与费用估算安全且可复核", () => {
@@ -265,6 +293,18 @@ test("RSS 审核队列展示最近 Gemini 失败任务的脱敏原因", async ()
   assert.match(page, /automation_jobs/);
   assert.match(page, /最近 Gemini 失败记录/);
   assert.match(page, /sanitizeGeminiErrorMessage/);
+});
+
+test("后台提供自动发布开关但不绕过安全发布条件", async () => {
+  const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/admin/settings/auto-publish/route.ts", import.meta.url), "utf8");
+  const component = await readFile(new URL("../components/AutoPublishToggle.tsx", import.meta.url), "utf8");
+  assert.match(page, /AutoPublishToggle/);
+  assert.match(page, /auto_publish_enabled/);
+  assert.match(route, /getAdminUser/);
+  assert.match(route, /site_settings/);
+  assert.match(component, /高置信度、来源和非重复/);
+  assert.doesNotMatch(route, /status = 'published'/);
 });
 
 test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {

@@ -1,5 +1,7 @@
 import { getAdminUser } from "@/app/admin-auth";
+import { FeedCandidate, selectRelated } from "@/lib/automation";
 import { ensureDefaultCategories } from "@/lib/categories";
+import { feedImageCandidate } from "@/lib/feed";
 import {
   buildTranslationPrompt,
   extractInteractionText,
@@ -20,7 +22,30 @@ type FeedRow = {
   fingerprint: string;
   published_at: string | null;
   processing_status: string;
+  raw_json: string;
 };
+
+type RelatedFeedRow = {
+  id: number;
+  title: string;
+  url: string;
+  summary: string;
+  published_at: string | null;
+};
+
+type DownloadedCover = {
+  key: string;
+  source: string;
+  copyright: string;
+};
+
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -38,7 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!Number.isInteger(id) || id <= 0) return Response.json({ error: "无效的 RSS 记录" }, { status: 400 });
   const { env } = await import("cloudflare:workers");
   const item = await env.DB.prepare(
-    "SELECT id, title, url, summary, fingerprint, published_at, processing_status FROM feed_items WHERE id = ?"
+    "SELECT id, title, url, summary, fingerprint, published_at, processing_status, raw_json FROM feed_items WHERE id = ?"
   ).bind(id).first<FeedRow>();
   if (!item) return Response.json({ error: "RSS 记录不存在" }, { status: 404 });
   if (item.processing_status !== "translation_required") {
@@ -61,6 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const jobId = Number(job.meta.last_row_id);
 
   try {
+    const related = await relatedFeedItems(env.DB, item);
     const relayUrl = process.env.GEMINI_RELAY_URL ?? "";
     const relaySecret = process.env.GEMINI_RELAY_SECRET ?? "";
     if (relayUrl && !relaySecret) throw new Error("GEMINI_RELAY_SECRET_MISSING");
@@ -76,7 +102,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       body: JSON.stringify({
         contents: [{
           role: "user",
-          parts: [{ text: buildTranslationPrompt(item) }],
+          parts: [{
+            text: buildTranslationPrompt({
+              title: item.title,
+              summary: item.summary,
+              url: item.url,
+              publishedAt: item.published_at,
+            }, related),
+          }],
         }],
       }),
     });
@@ -107,11 +140,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!category) throw new Error("CATEGORY_NOT_FOUND");
     const reviewReason = draft.review_reason || "本文由 Gemini 根据 RSS 标题与摘要生成，未核验原始全文，发布前必须人工检查。";
     const contentHtml = paragraphsToHtml(draft.paragraphs);
+    const cover = await maybeDownloadFeedCover(env.MEDIA, item);
     const article = await env.DB.prepare(
       `INSERT INTO articles
        (title, subtitle, slug, seo_title, description, content_html, category_id, status,
-        confidence, requires_review, review_reason, canonical_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'review', ?, true, ?, '')`
+        confidence, requires_review, review_reason, canonical_url,
+        cover_object_key, cover_source, cover_copyright)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'review', ?, true, ?, '', ?, ?, ?)`
     ).bind(
       draft.title,
       draft.subtitle,
@@ -122,6 +157,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       category.id,
       draft.confidence,
       reviewReason,
+      cover?.key ?? "",
+      cover?.source ?? "",
+      cover?.copyright ?? "",
     ).run();
     const articleId = Number(article.meta.last_row_id);
     if (!articleId) throw new Error("ARTICLE_INSERT_FAILED");
@@ -158,8 +196,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       env.DB.prepare(
         `INSERT INTO ai_generation_logs
          (article_id, job_id, provider, model, prompt_version, source_count, output_chars, requires_review)
-         VALUES (?, ?, 'gemini', ?, 'rss_translation_v1', 1, ?, true)`
-      ).bind(articleId, jobId, model, draft.paragraphs.join("").length),
+         VALUES (?, ?, 'gemini', ?, 'rss_translation_v2', ?, ?, true)`
+      ).bind(articleId, jobId, model, 1 + related.length, draft.paragraphs.join("").length),
     ]);
 
     return Response.json({
@@ -175,6 +213,71 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const message = error instanceof Error ? error.message.slice(0, 200) : "RSS_TRANSLATION_UNKNOWN_ERROR";
     await failJob(env.DB, jobId, message);
     return Response.json({ error: "中文草稿创建失败，错误已记录" }, { status: 500 });
+  }
+}
+
+async function relatedFeedItems(db: D1Database, item: FeedRow) {
+  const result = await db.prepare(
+    `SELECT id, title, url, summary, published_at
+     FROM feed_items
+     WHERE id != ?
+     ORDER BY COALESCE(published_at, created_at) DESC
+     LIMIT 100`
+  ).bind(item.id).all<RelatedFeedRow>();
+  const primary: FeedCandidate = {
+    id: String(item.id),
+    title: item.title,
+    url: item.url,
+    summary: item.summary,
+    publishedAt: item.published_at ?? undefined,
+  };
+  return selectRelated(primary, result.results.map((row) => ({
+    id: String(row.id),
+    title: row.title,
+    url: row.url,
+    summary: row.summary,
+    publishedAt: row.published_at ?? undefined,
+  }))).map((row) => ({
+    title: row.title,
+    summary: row.summary,
+    url: row.url,
+    publishedAt: row.publishedAt ?? null,
+  }));
+}
+
+async function maybeDownloadFeedCover(media: R2Bucket, item: FeedRow): Promise<DownloadedCover | null> {
+  const candidate = feedImageCandidate(item.raw_json);
+  if (!candidate) return null;
+  try {
+    const response = await fetch(candidate.url, {
+      headers: { accept: "image/jpeg,image/png,image/webp" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+    const extension = IMAGE_EXTENSIONS[contentType];
+    if (!extension) return null;
+    const contentLength = Number(response.headers.get("content-length") ?? "0");
+    if (contentLength > MAX_IMAGE_BYTES) return null;
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength > MAX_IMAGE_BYTES || bytes.byteLength === 0) return null;
+    const now = new Date();
+    const key = `covers/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${crypto.randomUUID()}.${extension}`;
+    await media.put(key, bytes, {
+      httpMetadata: { contentType },
+      customMetadata: {
+        source: candidate.url,
+        importedFrom: candidate.source,
+        feedItemId: String(item.id),
+      },
+    });
+    return {
+      key,
+      source: candidate.url,
+      copyright: "RSS 提供的图片，发布前请确认授权或替换为官方/自有素材",
+    };
+  } catch {
+    return null;
   }
 }
 
