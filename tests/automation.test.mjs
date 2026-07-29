@@ -337,6 +337,16 @@ test("RSS 审核队列展示最近 Gemini 失败任务的脱敏原因", async ()
   assert.match(page, /sanitizeGeminiErrorMessage/);
 });
 
+test("RSS 审核队列显示累计收录总数与状态统计", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /COUNT\(\*\) AS total/);
+  assert.match(page, /processing_status = 'translation_required'/);
+  assert.match(page, /processing_status = 'low_relevance'/);
+  assert.match(page, /processing_status = 'drafted'/);
+  assert.match(page, /总收录/);
+  assert.match(page, /当前显示 \{result\.results\.length\} 条 · 总收录/);
+});
+
 test("RSS 审核队列支持选择批量生成数量但全部保留人工审核", async () => {
   const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
   const component = await readFile(new URL("../components/BatchTranslateAction.tsx", import.meta.url), "utf8");

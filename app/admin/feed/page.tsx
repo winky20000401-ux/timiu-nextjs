@@ -30,10 +30,19 @@ type TranslationUsage = {
   estimated_cost_microusd: number;
 };
 
+type FeedStats = {
+  total: number;
+  translation_required: number;
+  review: number;
+  low_relevance: number;
+  duplicate: number;
+  drafted: number;
+};
+
 export default async function FeedQueuePage() {
   await requireAdminUser("/admin/feed");
   const { env } = await import("cloudflare:workers");
-  const [result, failedJobs, usage] = await Promise.all([
+  const [result, failedJobs, usage, feedStats] = await Promise.all([
     env.DB.prepare(
       `SELECT id, title, url, summary, published_at, processing_status
        FROM feed_items ORDER BY created_at DESC LIMIT 100`
@@ -54,6 +63,15 @@ export default async function FeedQueuePage() {
        WHERE type = 'rss_translation' AND status = 'succeeded'
          AND finished_at >= datetime('now', '-30 days')`
     ).first<TranslationUsage>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(CASE WHEN processing_status = 'translation_required' THEN 1 ELSE 0 END), 0) AS translation_required,
+              COALESCE(SUM(CASE WHEN processing_status = 'review' THEN 1 ELSE 0 END), 0) AS review,
+              COALESCE(SUM(CASE WHEN processing_status = 'low_relevance' THEN 1 ELSE 0 END), 0) AS low_relevance,
+              COALESCE(SUM(CASE WHEN processing_status = 'duplicate' THEN 1 ELSE 0 END), 0) AS duplicate,
+              COALESCE(SUM(CASE WHEN processing_status = 'drafted' THEN 1 ELSE 0 END), 0) AS drafted
+       FROM feed_items`
+    ).first<FeedStats>(),
   ]);
   const batchTranslationIds = result.results
     .filter((item) => item.processing_status === "translation_required")
@@ -62,7 +80,15 @@ export default async function FeedQueuePage() {
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
     <div className="shell admin-page">
-      <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">{result.results.length} 条记录</span></div>
+      <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">当前显示 {result.results.length} 条 · 总收录 {(feedStats?.total ?? 0).toLocaleString()} 条</span></div>
+      <div className="feed-stats-grid" aria-label="RSS 收录统计">
+        <div><span>总收录</span><strong>{(feedStats?.total ?? 0).toLocaleString()}</strong></div>
+        <div><span>待翻译</span><strong>{(feedStats?.translation_required ?? 0).toLocaleString()}</strong></div>
+        <div><span>待审核</span><strong>{(feedStats?.review ?? 0).toLocaleString()}</strong></div>
+        <div><span>低相关</span><strong>{(feedStats?.low_relevance ?? 0).toLocaleString()}</strong></div>
+        <div><span>重复</span><strong>{(feedStats?.duplicate ?? 0).toLocaleString()}</strong></div>
+        <div><span>已成稿</span><strong>{(feedStats?.drafted ?? 0).toLocaleString()}</strong></div>
+      </div>
       <ol className="feed-usage-guide">
         <li><strong>1. 查看线索</strong><span>阅读标题与摘要，点击原始来源核对全文。</span></li>
         <li><strong>2. 生成草稿</strong><span>明显低相关的影视/泛娱乐线索会被标记出来；外文游戏线索可用 Gemini 结合相关 RSS 生成更接近正式资讯的中文草稿。</span></li>
