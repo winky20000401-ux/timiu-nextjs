@@ -180,6 +180,8 @@ test("Gemini 翻译接口保持人工审核、记录任务且不启用自动发�
   assert.match(route, /processing_status = 'drafted'/);
   assert.match(route, /parseGeminiApiError/);
   assert.match(route, /geminiErrorForUser/);
+  assert.match(route, /const reviewReason =/);
+  assert.doesNotMatch(route, /contentHtml = `\$\{paragraphsToHtml/);
   assert.doesNotMatch(route, /minItems|maxItems/);
   assert.doesNotMatch(route, /status = 'published'/);
 });

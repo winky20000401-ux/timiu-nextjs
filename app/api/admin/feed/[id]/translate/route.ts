@@ -105,8 +105,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await ensureDefaultCategories(env.DB);
     const category = await env.DB.prepare("SELECT id FROM categories WHERE slug = ?").bind("news").first<{ id: number }>();
     if (!category) throw new Error("CATEGORY_NOT_FOUND");
-    const contentHtml = `${paragraphsToHtml(draft.paragraphs)}
-      <p><strong>编辑提示：</strong>本文由 Gemini 根据 RSS 标题与摘要生成，未核验原始全文，发布前必须人工检查。</p>`;
+    const reviewReason = draft.review_reason || "本文由 Gemini 根据 RSS 标题与摘要生成，未核验原始全文，发布前必须人工检查。";
+    const contentHtml = paragraphsToHtml(draft.paragraphs);
     const article = await env.DB.prepare(
       `INSERT INTO articles
        (title, subtitle, slug, seo_title, description, content_html, category_id, status,
@@ -121,7 +121,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       contentHtml,
       category.id,
       draft.confidence,
-      draft.review_reason || "Gemini RSS 翻译草稿需要人工核验",
+      reviewReason,
     ).run();
     const articleId = Number(article.meta.last_row_id);
     if (!articleId) throw new Error("ARTICLE_INSERT_FAILED");
