@@ -3,6 +3,7 @@ import { requireAdminUser } from "@/app/admin-auth";
 import { AutoPublishToggle } from "@/components/AutoPublishToggle";
 import { IngestButton } from "@/components/IngestButton";
 import { QuickArticleActions } from "@/components/QuickArticleActions";
+import { sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,19 @@ type SiteSettingRow = {
   value: string;
 };
 
+type FailedJobRow = {
+  id: number;
+  type: string;
+  model: string | null;
+  error_message: string | null;
+  finished_at: string | null;
+};
+
 export default async function AdminPage() {
   const user = await requireAdminUser("/admin");
   const geminiTranslationReady = process.env.RSS_TRANSLATION_ENABLED === "true" && Boolean(process.env.GEMINI_API_KEY);
   const { env } = await import("cloudflare:workers");
-  const [stats, queue, autoPublishSetting] = await Promise.all([
+  const [stats, queue, autoPublishSetting, failedJobs] = await Promise.all([
     env.DB.prepare(
       `SELECT
         (SELECT COUNT(*) FROM articles WHERE status = 'draft') AS drafts,
@@ -49,6 +58,13 @@ export default async function AdminPage() {
        LIMIT 10`
     ).all<QueueRow>(),
     env.DB.prepare("SELECT value FROM site_settings WHERE key = 'auto_publish_enabled'").first<SiteSettingRow>(),
+    env.DB.prepare(
+      `SELECT id, type, model, error_message, finished_at
+       FROM automation_jobs
+       WHERE status = 'failed'
+       ORDER BY id DESC
+       LIMIT 10`
+    ).all<FailedJobRow>(),
   ]);
   const autoPublishEnabled = autoPublishSetting?.value === "true";
   return (
@@ -60,7 +76,7 @@ export default async function AdminPage() {
           <Link className="stat-card" href="/admin/articles?status=draft"><span>草稿</span><strong>{stats?.drafts ?? 0}</strong><small>查看草稿 →</small></Link>
           <Link className="stat-card" href="/admin/articles?review=required"><span>需要人工审核</span><strong>{stats?.review_required ?? 0}</strong><small>开始审核 →</small></Link>
           <Link className="stat-card" href="/admin/articles?status=published"><span>已发布</span><strong>{stats?.published ?? 0}</strong><small>查看文章 →</small></Link>
-          <Link className="stat-card" href="/admin?view=failed#recent-activity"><span>失败任务</span><strong>{stats?.failed_jobs ?? 0}</strong><small>查看记录 →</small></Link>
+          <Link className="stat-card" href="/admin#failed-jobs"><span>失败任务</span><strong>{stats?.failed_jobs ?? 0}</strong><small>查看记录 →</small></Link>
         </div>
         <div className="admin-grid">
           <section className="admin-card" id="recent-activity">
@@ -79,6 +95,18 @@ export default async function AdminPage() {
             {queue.results.length === 0 && <p className="muted">还没有文章。点击“新建文章”即可创建第一篇草稿。</p>}
           </section>
           <aside>
+            <section className="admin-card failed-jobs-card" id="failed-jobs">
+              <h2>失败任务记录</h2>
+              {failedJobs.results.length === 0 ? <p className="muted">暂无失败任务。系统运行很干净，挺争气。</p> :
+                <table className="admin-table compact-table">
+                  <thead><tr><th>任务</th><th>错误</th><th>时间</th></tr></thead>
+                  <tbody>{failedJobs.results.map((job) => <tr key={job.id}>
+                    <td>#{job.id}<br /><small>{jobTypeLabel(job.type)}{job.model ? ` · ${job.model}` : ""}</small></td>
+                    <td><code>{sanitizeGeminiErrorMessage(job.error_message ?? "未记录错误详情")}</code></td>
+                    <td>{job.finished_at ?? "未记录"}</td>
+                  </tr>)}</tbody>
+                </table>}
+            </section>
             <details className="admin-card workflow-panel">
               <summary>安全发布流程与运行参数</summary>
               <ol className="workflow"><li><b>1</b>读取 RSS 或手动新建文章</li><li><b>2</b>核对标题、正文与来源</li><li><b>3</b>排除版本冲突与重复选题</li><li><b>4</b>补全栏目、摘要和标签</li><li><b>5</b>人工审核后手动发布</li></ol>
@@ -101,4 +129,13 @@ function confidenceTone(confidence: number) {
   if (confidence >= 0.85) return "high";
   if (confidence >= 0.6) return "medium";
   return "low";
+}
+
+function jobTypeLabel(type: string) {
+  return ({
+    rss_ingest: "RSS 入库",
+    rss_translation: "RSS 翻译",
+    ai_draft: "AI 草稿",
+    ai_rewrite: "AI 重写",
+  } as Record<string, string>)[type] ?? type;
 }

@@ -4,7 +4,7 @@ import { QuickArticleActions } from "@/components/QuickArticleActions";
 
 export const dynamic = "force-dynamic";
 
-type ArticleRow = { id: number; title: string; status: string; updated_at: string; requires_review: number };
+type ArticleRow = { id: number; title: string; slug: string; status: string; updated_at: string; requires_review: number };
 
 export default async function AdminArticlesPage({
   searchParams,
@@ -22,7 +22,7 @@ export default async function AdminArticlesPage({
   const { env } = await import("cloudflare:workers");
   const where = status ? "WHERE status = ?" : reviewRequired ? "WHERE requires_review = 1 AND status != 'archived'" : "";
   const statement = env.DB.prepare(
-    `SELECT id, title, status, updated_at, requires_review FROM articles ${where} ORDER BY updated_at DESC LIMIT 100`
+    `SELECT id, title, slug, status, updated_at, requires_review FROM articles ${where} ORDER BY updated_at DESC LIMIT 100`
   );
   const result = status
     ? await statement.bind(status).all<ArticleRow>()
@@ -42,7 +42,9 @@ export default async function AdminArticlesPage({
       <section className="admin-card">
         {result.results.length === 0 ? <p className="muted">此筛选条件下没有文章，可以新建文章或切换其他筛选。</p> :
           <table className="admin-table"><thead><tr><th>标题</th><th>状态</th><th>审核</th><th>更新</th><th>操作</th></tr></thead>
-            <tbody>{result.results.map((article) => <tr key={article.id}><td><Link className="article-row-link" href={`/admin/articles/${article.id}`}>{article.title}</Link></td><td><span className={`badge ${article.status === "published" ? "published" : ""}`}>{statusLabel(article.status)}</span></td><td>{article.requires_review ? "需要" : "已完成"}</td><td>{article.updated_at}</td><td><QuickArticleActions id={article.id} status={article.status} /></td></tr>)}</tbody>
+            <tbody>{result.results.map((article) => <tr key={article.id}><td>{article.status === "published"
+              ? <a className="article-row-link" href={`/article/${article.slug}`}>{article.title}</a>
+              : <Link className="article-row-link" href={`/admin/articles/${article.id}`}>{article.title}</Link>}</td><td><span className={`badge ${article.status === "published" ? "published" : ""}`}>{statusLabel(article.status)}</span></td><td>{article.requires_review ? "需要" : "已完成"}</td><td>{article.updated_at}</td><td><QuickArticleActions id={article.id} status={article.status} /></td></tr>)}</tbody>
           </table>}
       </section>
     </div>

@@ -381,6 +381,16 @@ test("后台提供自动发布开关但不绕过安全发布条件", async () =>
   assert.doesNotMatch(route, /status = 'published'/);
 });
 
+test("工作台失败任务卡片跳转到真实失败记录区", async () => {
+  const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /href="\/admin#failed-jobs"/);
+  assert.match(page, /id="failed-jobs"/);
+  assert.match(page, /失败任务记录/);
+  assert.match(page, /FROM automation_jobs/);
+  assert.match(page, /sanitizeGeminiErrorMessage/);
+  assert.doesNotMatch(page, /view=failed#recent-activity/);
+});
+
 test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {
   const key = "covers/2026/07/2d37f302-70d2-43c3-a3e1-b35a499ab014.webp";
   assert.equal(safeCoverKey(key), key);
@@ -416,6 +426,14 @@ test("审核列表快速发布成功后也自动回到工作台", async () => {
   assert.match(actions, /action === "publish"/);
   assert.match(actions, /window\.location\.assign\("\/admin"\)/);
   assert.match(actions, /window\.location\.reload\(\)/);
+});
+
+test("文章管理中已发布文章标题使用公开文章链接以支持新分页打开", async () => {
+  const page = await readFile(new URL("../app/admin/articles/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /SELECT id, title, slug, status/);
+  assert.match(page, /article\.status === "published"/);
+  assert.match(page, /href=\{`\/article\/\$\{article\.slug\}`\}/);
+  assert.match(page, /href=\{`\/admin\/articles\/\$\{article\.id\}`\}/);
 });
 
 test("管理员邮箱白名单会规范化大小写和空格", () => {
