@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canAutoPublish, hasVersionConflict, titleSimilarity } from "../lib/automation.ts";
-import { detectLanguage, feedImageCandidate, feedUrlWithLimit, prepareFeedItems, stripHtml } from "../lib/feed.ts";
+import { detectLanguage, feedImageCandidate, feedUrlWithLimit, gameRelevanceLabel, isGameRelatedFeedItem, prepareFeedItems, stripHtml } from "../lib/feed.ts";
 import { mediaUrl, safeCoverKey } from "../lib/media.ts";
 import {
   buildTranslationPrompt,
@@ -83,6 +83,28 @@ test("RSS 入库限制数量并标记重复与待翻译", async () => {
   assert.equal(items[2].status, "translation_required");
 });
 
+test("RSS 入库会标记明显非游戏低相关线索以节省 Gemini", async () => {
+  assert.equal(isGameRelatedFeedItem({
+    title: "Sea of Thieves shares August update plans",
+    summary: "The multiplayer pirate game is getting a new patch on Steam and Xbox.",
+  }), true);
+  assert.equal(isGameRelatedFeedItem({
+    title: "Avengers movie projected to dominate the box office",
+    summary: "The MCU film is expected to lead theaters this weekend.",
+  }), false);
+  assert.match(gameRelevanceLabel({
+    title: "Avengers movie projected to dominate the box office",
+    summary: "The MCU film is expected to lead theaters this weekend.",
+  }), /低相关/);
+  const items = await prepareFeedItems([{
+    id: "movie-1",
+    title: "Marvel movie projected to have the biggest opening",
+    canonical: [{ href: "https://example.com/movie" }],
+    summary: { content: "The MCU film could lead the box office this weekend." },
+  }], 100);
+  assert.equal(items[0].status, "low_relevance");
+});
+
 test("Inoreader 公共 JSON Feed 的 url、content_html 和 date_published 可正常解析", async () => {
   const items = await prepareFeedItems([{
     id: "json-feed-1",
@@ -109,9 +131,11 @@ test("RSS 入库结果区分新条目与数据库已存在条目", async () => {
   const route = await readFile(new URL("../app/api/automation/ingest/route.ts", import.meta.url), "utf8");
   const button = await readFile(new URL("../components/IngestButton.tsx", import.meta.url), "utf8");
   assert.match(route, /alreadyStored/);
+  assert.match(route, /lowRelevance/);
   assert.match(route, /newestPublishedAt/);
   assert.match(button, /没有新条目/);
   assert.match(button, /已存在/);
+  assert.match(button, /低相关/);
 });
 
 test("外文 RSS 线索可以生成待翻译、待审核草稿", async () => {

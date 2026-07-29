@@ -48,6 +48,7 @@ export async function POST() {
       imported,
       alreadyStored,
       duplicates: items.filter((item) => item.status === "duplicate").length,
+      lowRelevance: items.filter((item) => item.status === "low_relevance").length,
       requiresTranslation: items.filter((item) => item.status === "translation_required").length,
       review: items.filter((item) => item.status === "review").length,
       newestPublishedAt,

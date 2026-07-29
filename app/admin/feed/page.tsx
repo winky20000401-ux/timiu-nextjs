@@ -60,7 +60,7 @@ export default async function FeedQueuePage() {
       <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">{result.results.length} 条记录</span></div>
       <ol className="feed-usage-guide">
         <li><strong>1. 查看线索</strong><span>阅读标题与摘要，点击原始来源核对全文。</span></li>
-        <li><strong>2. 生成草稿</strong><span>中文线索生成短讯草稿；外文线索可用 Gemini 结合相关 RSS 生成更接近正式资讯的中文草稿。</span></li>
+        <li><strong>2. 生成草稿</strong><span>明显低相关的影视/泛娱乐线索会被标记出来；外文游戏线索可用 Gemini 结合相关 RSS 生成更接近正式资讯的中文草稿。</span></li>
         <li><strong>3. 人工编辑</strong><span>补充自然中文、栏目、标签、封面和来源后再手动发布。</span></li>
       </ol>
       <section className="admin-card">
@@ -109,6 +109,7 @@ function statusLabel(status: string) {
   return ({
     review: "待审核",
     translation_required: "需人工翻译",
+    low_relevance: "低相关",
     duplicate: "重复",
     drafted: "已生成草稿",
   } as Record<string, string>)[status] ?? status;

@@ -10,7 +10,7 @@ export type PreparedFeedItem = {
   publishedAt: string | null;
   fingerprint: string;
   language: "zh" | "other";
-  status: "review" | "translation_required" | "duplicate";
+  status: "review" | "translation_required" | "duplicate" | "low_relevance";
   duplicateOfExternalId: string | null;
   rawJson: string;
 };
@@ -87,6 +87,19 @@ export function detectLanguage(value: string): "zh" | "other" {
   if (!compact) return "other";
   const chinese = (compact.match(/[\u3400-\u9fff]/g) ?? []).length;
   return chinese / compact.length >= 0.18 ? "zh" : "other";
+}
+
+export function isGameRelatedFeedItem(input: { title: string; summary?: string; url?: string }) {
+  const text = normalizeRelevanceText(`${input.title} ${input.summary ?? ""} ${input.url ?? ""}`);
+  const positiveScore = GAME_RELEVANCE_KEYWORDS.reduce((score, keyword) => score + (text.includes(keyword) ? 1 : 0), 0);
+  const negativeScore = NON_GAME_KEYWORDS.reduce((score, keyword) => score + (text.includes(keyword) ? 1 : 0), 0);
+  if (positiveScore >= 2) return true;
+  if (positiveScore >= 1 && negativeScore === 0) return true;
+  return false;
+}
+
+export function gameRelevanceLabel(input: { title: string; summary?: string; url?: string }) {
+  return isGameRelatedFeedItem(input) ? "游戏/硬件相关" : "低相关，建议人工确认";
 }
 
 function extractUrl(value: unknown): string {
@@ -211,6 +224,7 @@ export async function prepareFeedItems(items: InoreaderItem[], limit = 100): Pro
       titleSimilarity(candidate.title, title) >= 0.82
     );
     const language = detectLanguage(`${title} ${summary}`);
+    const gameRelated = isGameRelatedFeedItem({ title, summary, url });
     prepared.push({
       externalId,
       title,
@@ -219,10 +233,29 @@ export async function prepareFeedItems(items: InoreaderItem[], limit = 100): Pro
       publishedAt: itemPublishedAt(item),
       fingerprint,
       language,
-      status: duplicate ? "duplicate" : language === "zh" ? "review" : "translation_required",
+      status: duplicate ? "duplicate" : !gameRelated ? "low_relevance" : language === "zh" ? "review" : "translation_required",
       duplicateOfExternalId: duplicate?.externalId ?? null,
       rawJson: JSON.stringify(item).slice(0, 40_000),
     });
   }
   return prepared;
+}
+
+const GAME_RELEVANCE_KEYWORDS = [
+  "游戏", "手游", "电竞", "主机", "硬件", "显卡", "处理器", "掌机", "攻略", "版本更新", "发售", "补丁", "开发商", "发行商",
+  "game", "games", "gaming", "gamer", "gameplay", "playable", "playstation", "ps5", "ps4", "xbox", "nintendo", "switch",
+  "steam", "epic games", "pc game", "console", "handheld", "esports", "rpg", "jrpg", "mmorpg", "fps", "shooter",
+  "dlc", "patch", "update", "early access", "release date", "launch", "developer", "publisher", "studio",
+  "trailer", "demo", "beta", "mod", "quest", "boss", "level", "multiplayer", "single-player", "open world",
+  "gpu", "cpu", "graphics card", "hardware", "driver",
+];
+
+const NON_GAME_KEYWORDS = [
+  "box office", "movie", "film", "cinema", "theater", "theatre", "mcu", "marvel studios", "dc studios",
+  "tv series", "episode", "season", "streaming", "netflix", "disney+", "hbo", "actor", "actress", "director",
+  "票房", "电影", "电视剧", "剧集", "院线", "演员", "导演", "漫威影业",
+];
+
+function normalizeRelevanceText(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }

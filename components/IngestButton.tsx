@@ -8,6 +8,7 @@ type Result = {
   imported?: number;
   alreadyStored?: number;
   duplicates?: number;
+  lowRelevance?: number;
   requiresTranslation?: number;
   newestPublishedAt?: string | null;
   rejected?: { missingTitle?: number; missingUrl?: number; invalidUrl?: number };
@@ -49,5 +50,5 @@ function rssSummary(result: Result) {
   const rejected = (result.fetched ?? 0) > (result.valid ?? 0)
     ? `；过滤 ${(result.fetched ?? 0) - (result.valid ?? 0)} 条（缺标题 ${result.rejected?.missingTitle ?? 0}、缺链接 ${result.rejected?.missingUrl ?? 0}）`
     : "";
-  return `${prefix}读取 ${result.fetched ?? 0} 条；有效 ${result.valid ?? 0} 条；新增 ${result.imported ?? 0} 条；已存在 ${result.alreadyStored ?? 0} 条；待翻译 ${result.requiresTranslation ?? 0} 条${rejected}${newest}`;
+  return `${prefix}读取 ${result.fetched ?? 0} 条；有效 ${result.valid ?? 0} 条；新增 ${result.imported ?? 0} 条；已存在 ${result.alreadyStored ?? 0} 条；待翻译 ${result.requiresTranslation ?? 0} 条；低相关 ${result.lowRelevance ?? 0} 条${rejected}${newest}`;
 }
