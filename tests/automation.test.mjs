@@ -395,6 +395,25 @@ test("后台提供自动发布开关但不绕过安全发布条件", async () =>
   assert.doesNotMatch(route, /status = 'published'/);
 });
 
+test("后台可以手动执行自动发布检查并保留安全条件", async () => {
+  const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  const button = await readFile(new URL("../components/AutoPublishRunButton.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/admin/automation/auto-publish/route.ts", import.meta.url), "utf8");
+  assert.match(page, /AutoPublishRunButton/);
+  assert.match(button, /立即自动发布检查/);
+  assert.match(button, /\/api\/admin\/automation\/auto-publish/);
+  assert.match(route, /auto_publish_enabled/);
+  assert.match(route, /auto_publish_limit/);
+  assert.match(route, /canAutoPublish/);
+  assert.match(route, /article_sources/);
+  assert.match(route, /contentChars/);
+  assert.match(route, /status = 'published'/);
+  assert.match(route, /publication_logs/);
+  assert.match(route, /置信度 .* < 0\.60/);
+  assert.match(route, /正文 .* < 600 字/);
+  assert.match(route, /没有有效来源/);
+});
+
 test("工作台失败任务卡片跳转到真实失败记录区", async () => {
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   assert.match(page, /href="\/admin#failed-jobs"/);
