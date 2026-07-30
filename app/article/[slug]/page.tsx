@@ -100,8 +100,21 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <header className="article-header">
           <div className="shell article-header-inner">
             <div className="breadcrumbs"><Link href="/">首页</Link> / <Link href={categoryMeta[article.category].href}>{categoryMeta[article.category].name}</Link> / 正文</div>
-            <h1>{article.title}</h1>
-            <p className="article-dek">{article.dek}</p>
+            <div className="article-title-grid">
+              <div>
+                <h1>{article.title}</h1>
+                <p className="article-dek">{article.dek}</p>
+              </div>
+              <aside className="article-info-card" aria-label="稿件信息">
+                <span>ARTICLE STATUS</span>
+                <strong>编辑演示稿</strong>
+                <dl>
+                  <div><dt>频道</dt><dd>{categoryMeta[article.category].name}</dd></div>
+                  <div><dt>阅读</dt><dd>{article.readingMinutes} 分钟</dd></div>
+                  <div><dt>来源</dt><dd>演示素材</dd></div>
+                </dl>
+              </aside>
+            </div>
             <div className="article-meta">
               <span><strong>{article.kicker}</strong></span>
               <span>发布于 {formatDate(article.publishedAt)}</span>
@@ -126,6 +139,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             </nav>
           </article>
           <aside className="article-rail">
+            <div className="rail-card">
+              <span className="section-label">CONTINUE</span>
+              <Link href={categoryMeta[article.category].href}>返回{categoryMeta[article.category].name} →</Link>
+            </div>
             <h2>相关报道</h2>
             {related.map((item) => <Link className="rail-link" href={`/article/${item.slug}`} key={item.slug}><strong>{item.title}</strong><span>{item.kicker} · {item.readingMinutes} 分钟</span></Link>)}
           </aside>
@@ -163,8 +180,21 @@ async function PublishedArticlePage({ article }: { article: PublishedArticle }) 
         <header className="article-header">
           <div className="shell article-header-inner">
             <div className="breadcrumbs"><Link href="/">首页</Link> / <Link href={categoryHref}>{article.category_name}</Link> / 正文</div>
-            <h1>{article.title}</h1>
-            {(article.subtitle || article.description) && <p className="article-dek">{article.subtitle || article.description}</p>}
+            <div className="article-title-grid">
+              <div>
+                <h1>{article.title}</h1>
+                {(article.subtitle || article.description) && <p className="article-dek">{article.subtitle || article.description}</p>}
+              </div>
+              <aside className="article-info-card" aria-label="稿件信息">
+                <span>ARTICLE STATUS</span>
+                <strong>人工审核发布</strong>
+                <dl>
+                  <div><dt>频道</dt><dd>{article.category_name}</dd></div>
+                  <div><dt>来源</dt><dd>{sources.length || 1} 条记录</dd></div>
+                  <div><dt>版权</dt><dd>{article.cover_object_key ? "已登记" : "无封面"}</dd></div>
+                </dl>
+              </aside>
+            </div>
             <div className="article-meta">
               <span><strong>{article.category_name}</strong></span>
               <span>发布于 {safeFormatDate(article.published_at)}</span>
@@ -175,13 +205,13 @@ async function PublishedArticlePage({ article }: { article: PublishedArticle }) 
         </header>
         <div className="shell article-body-wrap">
           <article className="article-body">
-            <div className="published-notice"><strong>编辑说明：</strong>本文已完成来源核对，并由管理员手动发布。</div>
             {article.cover_object_key && <figure className="article-cover-figure">
               <img src={mediaUrl(article.cover_object_key)} alt={article.title} />
               <figcaption>
                 图片来源：{article.cover_source || "未填写"} · 版权/授权：{article.cover_copyright || "未填写"}
               </figcaption>
             </figure>}
+            <div className="published-notice"><strong>编辑说明：</strong>本文已完成来源核对，并由管理员手动发布。</div>
             <div dangerouslySetInnerHTML={{ __html: article.content_html }} />
             <section className="source-box">
               <h2>消息来源</h2>
@@ -201,8 +231,17 @@ async function PublishedArticlePage({ article }: { article: PublishedArticle }) 
             <div className="article-tags">
               {tags.map((tag) => <Link href={`/tag/${encodeURIComponent(tag.slug)}`} key={tag.slug}>#{tag.name}</Link>)}
             </div>
+            <nav className="article-nav article-nav-single" aria-label="继续阅读">
+              <Link href={categoryHref}>← 返回{article.category_name}</Link>
+              <Link href="/search">搜索更多文章 →</Link>
+            </nav>
           </article>
           <aside className="article-rail">
+            <div className="rail-card">
+              <span className="section-label">SOURCE CHECK</span>
+              <strong>{sources.length ? `${sources.length} 条来源记录` : "来源待补充"}</strong>
+              <p>发布前请继续保留原始来源，方便后续核对与修订。</p>
+            </div>
             <h2>相关报道</h2>
             {related.length ? related.map((item) => (
               <Link className="rail-link" href={`/article/${item.slug}`} key={item.slug}>

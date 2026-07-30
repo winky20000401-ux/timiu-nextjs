@@ -373,6 +373,22 @@ test("RSS 队列单条生成草稿后在新分页打开编辑页", async () => {
   assert.doesNotMatch(component, /window\.location\.assign\(`\/admin\/articles\/\$\{result\.id\}`\)/);
 });
 
+test("文章详情页提供正式媒体阅读版式", async () => {
+  const page = await readFile(new URL("../app/article/[slug]/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /article-title-grid/);
+  assert.match(page, /article-info-card/);
+  assert.match(page, /ARTICLE STATUS/);
+  assert.match(page, /rail-card/);
+  assert.match(page, /article-nav-single/);
+  assert.match(page, /返回\{article\.category_name\}/);
+  assert.match(styles, /\.article-title-grid \{[^}]*grid-template-columns/s);
+  assert.match(styles, /\.article-info-card/s);
+  assert.match(styles, /\.article-cover-figure img \{[^}]*object-fit: contain/s);
+  assert.match(styles, /\.source-box \{[^}]*border-top: 4px solid var\(--lime\)/s);
+  assert.match(styles, /\.rail-card/s);
+});
+
 test("首页焦点和侧栏文章优先展示真实封面图", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
