@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdminUser } from "@/app/admin-auth";
 import { BatchTranslateAction } from "@/components/BatchTranslateAction";
 import { FeedQueueAction } from "@/components/FeedQueueAction";
+import { formatDate } from "@/lib/content";
 import { formatMicrousd, sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ type QueueItem = {
   url: string;
   summary: string;
   published_at: string | null;
+  created_at: string;
   processing_status: string;
 };
 
@@ -46,7 +48,7 @@ export default async function FeedQueuePage() {
   const { env } = await import("cloudflare:workers");
   const [result, failedJobs, usage, feedStats] = await Promise.all([
     env.DB.prepare(
-      `SELECT id, title, url, summary, published_at, processing_status
+      `SELECT id, title, url, summary, published_at, created_at, processing_status
        FROM feed_items ORDER BY created_at DESC LIMIT 100`
     ).all<QueueItem>(),
     env.DB.prepare(
@@ -116,9 +118,13 @@ export default async function FeedQueuePage() {
       <section className="admin-card">
         {result.results.length === 0 ? <p className="muted">队列为空，请先返回工作台读取最新 RSS。</p> :
           <table className="admin-table queue-table">
-            <thead><tr><th>新闻线索</th><th>状态</th><th>来源</th><th>操作</th></tr></thead>
+            <thead><tr><th>新闻线索</th><th>读取时间</th><th>状态</th><th>来源</th><th>操作</th></tr></thead>
             <tbody>{result.results.map((item) => <tr key={item.id}>
               <td><strong>{item.title}</strong>{item.summary && <small>{item.summary.slice(0, 150)}</small>}</td>
+              <td className="rss-time">
+                <strong>{formatQueueTime(item.created_at)}</strong>
+                <small>原文 {item.published_at ? formatDate(item.published_at) : "未记录"}</small>
+              </td>
               <td><span className="badge">{statusLabel(item.processing_status)}</span></td>
               <td><a href={item.url} target="_blank" rel="noreferrer">查看原始来源 ↗</a></td>
               <td><FeedQueueAction
@@ -144,6 +150,19 @@ export default async function FeedQueuePage() {
       </section>}
     </div>
   </main>;
+}
+
+function formatQueueTime(value: string | null) {
+  if (!value) return "未记录";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date).replace(/\//g, "-");
 }
 
 function statusLabel(status: string) {

@@ -11,6 +11,13 @@ export default async function Home() {
   const visibleArticles = await getVisibleArticles();
   const lead = visibleArticles[0];
   const sideLeads = visibleArticles.slice(1, 3);
+  const latestFeature = visibleArticles[3] ?? visibleArticles[0];
+  const latestList = visibleArticles.slice(4, 9);
+  const newsroomStats = [
+    { label: "已发布稿件", value: String(visibleArticles.length).padStart(2, "0") },
+    { label: "核心频道", value: "03" },
+    { label: "人工审核", value: "100%" },
+  ];
   return (
     <PageFrame>
       <main>
@@ -42,6 +49,13 @@ export default async function Home() {
               </div>
             </article>
             <div className="side-leads">
+              <div className="newsroom-card" aria-label="TIMIU 编辑台概览">
+                <span className="section-label">NEWSROOM INDEX</span>
+                <strong>重点资讯<br />先读事实。</strong>
+                <div>
+                  {newsroomStats.map((item) => <p key={item.label}><b>{item.value}</b><span>{item.label}</span></p>)}
+                </div>
+              </div>
               {sideLeads.map((article, index) => (
                 <article key={article.slug} className="side-lead">
                   <div className={`mini-art cover-${article.tone}`}>
@@ -74,7 +88,24 @@ export default async function Home() {
             <div><span className="section-index">01</span><h2>最新文章</h2></div>
             <Link href="/search">浏览全部 <span>→</span></Link>
           </div>
-          <div className="article-grid">{visibleArticles.slice(0, 3).map((article) => <ArticleCard article={article} key={article.slug} />)}</div>
+          <div className="latest-layout">
+            <article className="latest-feature">
+              <Link className={`latest-feature-art cover-${latestFeature.tone}`} href={`/article/${latestFeature.slug}`} aria-label={latestFeature.title}>
+                {latestFeature.coverObjectKey
+                  ? <img className="article-cover-image" src={mediaUrl(latestFeature.coverObjectKey)} alt="" />
+                  : <><span>FEATURE</span><b>T</b></>}
+              </Link>
+              <div className="latest-feature-copy">
+                <div className="eyebrow"><span>{categoryMeta[latestFeature.category].name}</span><span>{latestFeature.readingMinutes} MIN READ</span></div>
+                <h3><Link href={`/article/${latestFeature.slug}`}>{latestFeature.title}</Link></h3>
+                <p>{latestFeature.dek}</p>
+                <div className="lead-tags">{latestFeature.tags.slice(0, 4).map((tag) => <Link href={`/tag/${encodeURIComponent(tag)}`} key={tag}>#{tag}</Link>)}</div>
+              </div>
+            </article>
+            <div className="latest-stack">
+              {(latestList.length ? latestList : visibleArticles.slice(0, 5)).map((article) => <ArticleCard article={article} compact key={article.slug} />)}
+            </div>
+          </div>
         </section>
 
         <section className="dark-band">

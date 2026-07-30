@@ -380,10 +380,25 @@ test("首页焦点和侧栏文章优先展示真实封面图", async () => {
   assert.match(page, /mediaUrl\(lead\.coverObjectKey\)/);
   assert.match(page, /article\.coverObjectKey/);
   assert.match(page, /article-cover-image/);
+  assert.match(page, /newsroomStats/);
+  assert.match(page, /latest-layout/);
+  assert.match(page, /latest-stack/);
   assert.match(styles, /\.lead-cover-image \{[^}]*object-fit: contain/s);
   assert.match(styles, /\.mini-art \{[^}]*aspect-ratio: 16 \/ 9/s);
   assert.match(styles, /\.mini-art \.article-cover-image \{[^}]*object-fit: cover/s);
+  assert.match(styles, /\.latest-layout \{[^}]*grid-template-columns/s);
+  assert.match(styles, /\.article-card\.compact/s);
   assert.doesNotMatch(styles, /\.side-lead \{[^}]*grid-template-columns: 120px 1fr/s);
+});
+
+test("RSS 审核队列显示每条线索的读取入库时间", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /created_at/);
+  assert.match(page, /读取时间/);
+  assert.match(page, /formatQueueTime\(item\.created_at\)/);
+  assert.match(page, /原文 \{item\.published_at \? formatDate\(item\.published_at\) : "未记录"\}/);
+  assert.match(styles, /\.rss-time/);
 });
 
 test("后台提供自动发布开关但不绕过安全发布条件", async () => {
