@@ -66,18 +66,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     "SELECT id, title, url, summary, fingerprint, published_at, processing_status, raw_json FROM feed_items WHERE id = ?"
   ).bind(id).first<FeedRow>();
   if (!item) return Response.json({ error: "RSS 记录不存在" }, { status: 404 });
-  if (item.processing_status !== "translation_required") {
-    return Response.json({ error: "只有待翻译的外文 RSS 线索可以使用 Gemini 翻译" }, { status: 409 });
+  if (!["translation_required", "translation_failed", "translation_running"].includes(item.processing_status)) {
+    return Response.json({ error: "只有待翻译、处理中超时或翻译失败的外文 RSS 线索可以使用 Gemini 翻译" }, { status: 409 });
+  }
+  if (item.processing_status === "translation_running") {
+    const stale = await env.DB.prepare(
+      "SELECT 1 AS ok FROM feed_items WHERE id = ? AND updated_at < datetime('now', '-30 minutes')"
+    ).bind(id).first<{ ok: number }>();
+    if (!stale) return Response.json({ error: "该 RSS 正在翻译处理中，请稍后再试或等待当前任务完成" }, { status: 409 });
   }
   if (!item.summary.trim()) {
+    await env.DB.prepare(
+      "UPDATE feed_items SET processing_status = 'translation_failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(id).run();
     return Response.json({ error: "该 RSS 线索没有有效摘要，请先查看原始来源并手动编辑" }, { status: 409 });
   }
 
   const slug = `rss-${item.id}-${item.fingerprint.slice(0, 10)}`;
   const existing = await env.DB.prepare("SELECT id FROM articles WHERE slug = ?").bind(slug).first<{ id: number }>();
-  if (existing) return Response.json({ error: "该 RSS 条目已经创建过草稿", id: existing.id }, { status: 409 });
+  if (existing) {
+    await env.DB.prepare(
+      "UPDATE feed_items SET processing_status = 'drafted', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(id).run();
+    return Response.json({ error: "该 RSS 条目已经创建过草稿", id: existing.id }, { status: 409 });
+  }
 
   const model = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
+  await env.DB.prepare(
+    "UPDATE feed_items SET processing_status = 'translation_running', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+  ).bind(id).run();
   const job = await env.DB.prepare(
     `INSERT INTO automation_jobs
      (type, status, provider, model, input_count, output_count, attempt, started_at)
@@ -119,6 +136,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         env.DB,
         jobId,
         `GEMINI_HTTP_${response.status}:${details.code}${details.message ? `:${details.message}` : ""}`,
+        id,
       );
       return Response.json(
         { error: geminiErrorForUser(response.status, details.code, details.message), code: details.code },
@@ -131,7 +149,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const estimatedCostMicrousd = estimateGeminiCostMicrousd(model, usage);
     const draft = parseTranslationDraft(extractInteractionText(interaction));
     if (!draft) {
-      await failJob(env.DB, jobId, "GEMINI_INVALID_OUTPUT");
+      await failJob(env.DB, jobId, "GEMINI_INVALID_OUTPUT", id);
       return Response.json({ error: "Gemini 返回内容无法解析，错误已记录" }, { status: 502 });
     }
 
@@ -211,7 +229,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 200) : "RSS_TRANSLATION_UNKNOWN_ERROR";
-    await failJob(env.DB, jobId, message);
+    await failJob(env.DB, jobId, message, id);
     return Response.json({ error: "中文草稿创建失败，错误已记录" }, { status: 500 });
   }
 }
@@ -281,10 +299,18 @@ async function maybeDownloadFeedCover(media: R2Bucket, item: FeedRow): Promise<D
   }
 }
 
-async function failJob(db: D1Database, jobId: number, message: string) {
-  await db.prepare(
-    "UPDATE automation_jobs SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
-  ).bind(message, jobId).run();
+async function failJob(db: D1Database, jobId: number, message: string, feedItemId?: number) {
+  const statements = [
+    db.prepare(
+      "UPDATE automation_jobs SET status = 'failed', error_message = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(message, jobId),
+  ];
+  if (feedItemId) {
+    statements.push(db.prepare(
+      "UPDATE feed_items SET processing_status = 'translation_failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(feedItemId));
+  }
+  await db.batch(statements);
 }
 
 function sameOrigin(request: Request) {

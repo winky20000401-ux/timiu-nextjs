@@ -37,6 +37,8 @@ type FeedStats = {
   low_relevance: number;
   duplicate: number;
   drafted: number;
+  translation_failed: number;
+  translation_running: number;
 };
 
 export default async function FeedQueuePage() {
@@ -69,7 +71,9 @@ export default async function FeedQueuePage() {
               COALESCE(SUM(CASE WHEN processing_status = 'review' THEN 1 ELSE 0 END), 0) AS review,
               COALESCE(SUM(CASE WHEN processing_status = 'low_relevance' THEN 1 ELSE 0 END), 0) AS low_relevance,
               COALESCE(SUM(CASE WHEN processing_status = 'duplicate' THEN 1 ELSE 0 END), 0) AS duplicate,
-              COALESCE(SUM(CASE WHEN processing_status = 'drafted' THEN 1 ELSE 0 END), 0) AS drafted
+              COALESCE(SUM(CASE WHEN processing_status = 'drafted' THEN 1 ELSE 0 END), 0) AS drafted,
+              COALESCE(SUM(CASE WHEN processing_status = 'translation_failed' THEN 1 ELSE 0 END), 0) AS translation_failed,
+              COALESCE(SUM(CASE WHEN processing_status = 'translation_running' THEN 1 ELSE 0 END), 0) AS translation_running
        FROM feed_items`
     ).first<FeedStats>(),
   ]);
@@ -88,6 +92,8 @@ export default async function FeedQueuePage() {
         <div><span>低相关</span><strong>{(feedStats?.low_relevance ?? 0).toLocaleString()}</strong></div>
         <div><span>重复</span><strong>{(feedStats?.duplicate ?? 0).toLocaleString()}</strong></div>
         <div><span>已成稿</span><strong>{(feedStats?.drafted ?? 0).toLocaleString()}</strong></div>
+        <div><span>翻译失败</span><strong>{(feedStats?.translation_failed ?? 0).toLocaleString()}</strong></div>
+        <div><span>处理中</span><strong>{(feedStats?.translation_running ?? 0).toLocaleString()}</strong></div>
       </div>
       <ol className="feed-usage-guide">
         <li><strong>1. 查看线索</strong><span>阅读标题与摘要，点击原始来源核对全文。</span></li>
@@ -117,8 +123,8 @@ export default async function FeedQueuePage() {
               <td><a href={item.url} target="_blank" rel="noreferrer">查看原始来源 ↗</a></td>
               <td><FeedQueueAction
                 id={item.id}
-                disabled={!["review", "translation_required"].includes(item.processing_status)}
-                needsTranslation={item.processing_status === "translation_required"}
+                disabled={!["review", "translation_required", "translation_failed"].includes(item.processing_status)}
+                needsTranslation={["translation_required", "translation_failed"].includes(item.processing_status)}
               /></td>
             </tr>)}</tbody>
           </table>}
@@ -144,6 +150,8 @@ function statusLabel(status: string) {
   return ({
     review: "待审核",
     translation_required: "需人工翻译",
+    translation_failed: "翻译失败",
+    translation_running: "处理中",
     low_relevance: "低相关",
     duplicate: "重复",
     drafted: "已生成草稿",

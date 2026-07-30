@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     `SELECT id, title
      FROM feed_items
      WHERE processing_status = 'translation_required'
+        OR (processing_status = 'translation_running' AND updated_at < datetime('now', '-30 minutes'))
      ORDER BY COALESCE(published_at, created_at) DESC
      LIMIT ?`
   ).bind(limit).all<PendingFeedItem>();

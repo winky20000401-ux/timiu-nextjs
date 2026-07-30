@@ -1,5 +1,21 @@
 import { getAdminUser } from "@/app/admin-auth";
 
+export async function GET(request: Request) {
+  if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
+  const user = await getAdminUser();
+  if (!user) return Response.json({ error: "需要管理员权限" }, { status: 403 });
+  const { env } = await import("cloudflare:workers");
+  const [enabledSetting, limitSetting] = await Promise.all([
+    env.DB.prepare("SELECT value FROM site_settings WHERE key = 'auto_publish_enabled'").first<{ value: string }>(),
+    env.DB.prepare("SELECT value FROM site_settings WHERE key = 'auto_publish_limit'").first<{ value: string }>(),
+  ]);
+  const limit = Number(limitSetting?.value ?? 5);
+  return Response.json({
+    enabled: enabledSetting?.value === "true",
+    limit: [5, 10, 20, 50, 100].includes(limit) ? limit : 5,
+  });
+}
+
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
   const user = await getAdminUser();

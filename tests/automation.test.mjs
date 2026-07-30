@@ -341,9 +341,13 @@ test("RSS 审核队列显示累计收录总数与状态统计", async () => {
   const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
   assert.match(page, /COUNT\(\*\) AS total/);
   assert.match(page, /processing_status = 'translation_required'/);
+  assert.match(page, /processing_status = 'translation_failed'/);
+  assert.match(page, /processing_status = 'translation_running'/);
   assert.match(page, /processing_status = 'low_relevance'/);
   assert.match(page, /processing_status = 'drafted'/);
   assert.match(page, /总收录/);
+  assert.match(page, /翻译失败/);
+  assert.match(page, /处理中/);
   assert.match(page, /当前显示 \{result\.results\.length\} 条 · 总收录/);
 });
 
@@ -371,10 +375,14 @@ test("RSS 队列单条生成草稿后在新分页打开编辑页", async () => {
 
 test("首页焦点和侧栏文章优先展示真实封面图", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(page, /lead\.coverObjectKey/);
   assert.match(page, /mediaUrl\(lead\.coverObjectKey\)/);
   assert.match(page, /article\.coverObjectKey/);
   assert.match(page, /article-cover-image/);
+  assert.match(styles, /\.mini-art \{[^}]*aspect-ratio: 16 \/ 9/s);
+  assert.match(styles, /\.mini-art \.article-cover-image \{[^}]*object-fit: cover/s);
+  assert.doesNotMatch(styles, /\.side-lead \{[^}]*grid-template-columns: 120px 1fr/s);
 });
 
 test("后台提供自动发布开关但不绕过安全发布条件", async () => {
@@ -418,17 +426,27 @@ test("后台提供一键 RSS 处理流程但仍逐步执行安全检查", async 
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   const component = await readFile(new URL("../components/OneClickRssWorkflow.tsx", import.meta.url), "utf8");
   const pendingRoute = await readFile(new URL("../app/api/admin/feed/pending/route.ts", import.meta.url), "utf8");
+  const translateRoute = await readFile(new URL("../app/api/admin/feed/[id]/translate/route.ts", import.meta.url), "utf8");
   assert.match(page, /OneClickRssWorkflow/);
   assert.match(component, /一键处理 RSS/);
   assert.match(component, /\/api\/automation\/ingest/);
+  assert.match(component, /\/api\/admin\/settings\/auto-publish/);
   assert.match(component, /\/api\/admin\/feed\/pending/);
   assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
   assert.match(component, /\/api\/admin\/automation\/auto-publish/);
-  assert.match(component, /Math\.min\(limit, 20\)/);
+  assert.match(component, /Math\.min\(currentLimit, 20\)/);
+  assert.match(component, /AbortController/);
+  assert.match(component, /立刻停止/);
+  assert.match(component, /beforeunload/);
   assert.match(component, /Gemini 生成明细/);
   assert.match(pendingRoute, /getAdminUser/);
   assert.match(pendingRoute, /processing_status = 'translation_required'/);
+  assert.match(pendingRoute, /translation_running/);
+  assert.match(pendingRoute, /-30 minutes/);
   assert.match(pendingRoute, /LIMIT \?/);
+  assert.match(translateRoute, /translation_failed/);
+  assert.match(translateRoute, /translation_running/);
+  assert.match(translateRoute, /failJob\(env\.DB, jobId, [^)]*, id\)/s);
 });
 
 test("工作台失败任务卡片跳转到真实失败记录区", async () => {
