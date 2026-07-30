@@ -389,6 +389,23 @@ test("文章详情页提供正式媒体阅读版式", async () => {
   assert.match(styles, /\.rail-card/s);
 });
 
+test("栏目页提供频道焦点、最新列表和标签入口", async () => {
+  const page = await readFile(new URL("../components/CategoryPage.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /channel-hero/);
+  assert.match(page, /channel-count-card/);
+  assert.match(page, /channel-layout/);
+  assert.match(page, /channel-feature/);
+  assert.match(page, /channel-side/);
+  assert.match(page, /channel-tags/);
+  assert.match(page, /empty-channel/);
+  assert.match(page, /订阅 RSS/);
+  assert.match(page, /搜索本类内容/);
+  assert.match(styles, /\.channel-feature \{/);
+  assert.match(styles, /\.channel-side/);
+  assert.match(styles, /\.channel-tags/);
+});
+
 test("首页焦点和侧栏文章优先展示真实封面图", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
