@@ -12,6 +12,7 @@ type DashboardStats = {
   review_required: number;
   published: number;
   failed_jobs: number;
+  import_items: number;
 };
 
 type QueueRow = {
@@ -46,7 +47,8 @@ export default async function AdminPage() {
         (SELECT COUNT(*) FROM articles WHERE status = 'draft') AS drafts,
         (SELECT COUNT(*) FROM articles WHERE requires_review = 1 AND status != 'archived') AS review_required,
         (SELECT COUNT(*) FROM articles WHERE status = 'published') AS published,
-        (SELECT COUNT(*) FROM automation_jobs WHERE status = 'failed') AS failed_jobs`
+        (SELECT COUNT(*) FROM automation_jobs WHERE status = 'failed') AS failed_jobs,
+        (SELECT COUNT(*) FROM guide_import_items WHERE status = 'pending') AS import_items`
     ).first<DashboardStats>(),
     env.DB.prepare(
       `SELECT a.id, a.title, c.name AS category, a.status, a.confidence,
@@ -73,11 +75,12 @@ export default async function AdminPage() {
     <main className="admin-shell">
       <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/"><strong>TIMIU</strong><span>编辑工作台</span></Link><div className="admin-user"><span>{user.displayName}</span><form action="/api/admin/auth/logout" method="post"><button className="link-button">退出</button></form></div></div></header>
       <div className="shell admin-page">
-        <div className="admin-heading"><div><h1>内容工作台</h1><p>处理 RSS 线索、手动草稿、人工审核与发布记录。</p><div className="admin-actions"><IngestButton /><Link className="primary-button admin-create-button" href="/admin/articles/new">＋ 新建文章</Link><Link className="secondary-button" href="/admin/feed">RSS 审核队列 →</Link><Link className="secondary-button" href="/admin/articles">文章管理 →</Link></div></div><div className="status-stack"><span className="status-pill">Gemini RSS 翻译：{geminiTranslationReady ? "已就绪" : "待配置密钥"}</span><AutoPublishToggle enabled={autoPublishEnabled} limit={autoPublishLimit} /></div></div>
+        <div className="admin-heading"><div><h1>内容工作台</h1><p>处理 RSS 线索、手动草稿、人工审核与发布记录。</p><div className="admin-actions"><IngestButton /><Link className="primary-button admin-create-button" href="/admin/articles/new">＋ 新建文章</Link><Link className="secondary-button" href="/admin/feed">RSS 审核队列 →</Link><Link className="secondary-button" href="/admin/imports">攻略导入中心 →</Link><Link className="secondary-button" href="/admin/articles">文章管理 →</Link></div></div><div className="status-stack"><span className="status-pill">Gemini RSS 翻译：{geminiTranslationReady ? "已就绪" : "待配置密钥"}</span><AutoPublishToggle enabled={autoPublishEnabled} limit={autoPublishLimit} /></div></div>
         <div className="stats-grid">
           <Link className="stat-card" href="/admin/articles?status=draft"><span>草稿</span><strong>{stats?.drafts ?? 0}</strong><small>查看草稿 →</small></Link>
           <Link className="stat-card" href="/admin/articles?review=required"><span>需要人工审核</span><strong>{stats?.review_required ?? 0}</strong><small>开始审核 →</small></Link>
           <Link className="stat-card" href="/admin/articles?status=published"><span>已发布</span><strong>{stats?.published ?? 0}</strong><small>查看文章 →</small></Link>
+          <Link className="stat-card" href="/admin/imports"><span>攻略待导入</span><strong>{stats?.import_items ?? 0}</strong><small>查看导入 →</small></Link>
           <Link className="stat-card" href="/admin#failed-jobs"><span>失败任务</span><strong>{stats?.failed_jobs ?? 0}</strong><small>查看记录 →</small></Link>
         </div>
         <div className="admin-grid">

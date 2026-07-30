@@ -405,6 +405,31 @@ test("工作台失败任务卡片跳转到真实失败记录区", async () => {
   assert.doesNotMatch(page, /view=failed#recent-activity/);
 });
 
+test("后台提供攻略资源包批量导入中心并持久记录任务", async () => {
+  const page = await readFile(new URL("../app/admin/imports/page.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/admin/imports/route.ts", import.meta.url), "utf8");
+  const form = await readFile(new URL("../components/GuideImportForm.tsx", import.meta.url), "utf8");
+  const migration = await readFile(new URL("../drizzle/0004_silver_guide_imports.sql", import.meta.url), "utf8");
+  const admin = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  assert.match(admin, /\/admin\/imports/);
+  assert.match(admin, /guide_import_items/);
+  assert.match(page, /攻略批量导入/);
+  assert.match(page, /manifest\.csv/);
+  assert.match(page, /不会自动发布/);
+  assert.match(page, /guide_import_jobs/);
+  assert.match(page, /guide_import_items/);
+  assert.match(route, /getAdminUser/);
+  assert.match(route, /MAX_ITEMS_PER_REQUEST = 5000/);
+  assert.match(route, /Manifest CSV 缺少必填列/);
+  assert.match(route, /INSERT INTO guide_import_jobs/);
+  assert.match(route, /INSERT OR IGNORE INTO guide_import_items/);
+  assert.doesNotMatch(route, /status = 'published'/);
+  assert.match(form, /Manifest CSV 文件/);
+  assert.match(form, /创建导入任务/);
+  assert.match(migration, /CREATE TABLE `guide_import_jobs`/);
+  assert.match(migration, /CREATE TABLE `guide_import_items`/);
+});
+
 test("封面文件标识仅允许本站 covers 对象且生成安全公开地址", () => {
   const key = "covers/2026/07/2d37f302-70d2-43c3-a3e1-b35a499ab014.webp";
   assert.equal(safeCoverKey(key), key);
