@@ -5,8 +5,8 @@ export const automationDefaults = {
   similarityThreshold: 0.45,
   primaryMaxChars: 18_000,
   supportingMaxChars: 6_000,
-  minimumArticleChars: 800,
-  autoPublishConfidence: 0.9,
+  minimumArticleChars: 600,
+  autoPublishConfidence: 0.6,
 } as const;
 
 export type FeedCandidate = {

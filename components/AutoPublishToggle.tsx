@@ -27,7 +27,7 @@ export function AutoPublishToggle({ enabled, limit }: { enabled: boolean; limit:
       setValue(Boolean(result.enabled));
       setCount(Number(result.limit ?? nextCount));
       setMessage(Boolean(result.enabled)
-        ? `已开启开关；每次最多 ${Number(result.limit ?? nextCount)} 篇，仍需满足高置信度、来源和非重复等保护条件`
+        ? `已开启开关；每次最多 ${Number(result.limit ?? nextCount)} 篇，需满足置信度≥0.60、正文≥600字、来源和非重复等保护条件`
         : `已关闭自动发布；每次数量设置为 ${Number(result.limit ?? nextCount)} 篇`);
     } catch {
       setMessage("自动发布设置保存失败");

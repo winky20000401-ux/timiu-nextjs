@@ -37,8 +37,8 @@ test("相同事件标题能得到有效相似度", () => {
 test("自动发布必须满足全部安全条件", () => {
   const safe = {
     enabled: true,
-    confidence: 0.92,
-    contentChars: 960,
+    confidence: 0.6,
+    contentChars: 600,
     sourceCount: 2,
     hasConflict: false,
     isRumor: false,
@@ -47,8 +47,8 @@ test("自动发布必须满足全部安全条件", () => {
   };
   assert.equal(canAutoPublish(safe), true);
   assert.equal(canAutoPublish({ ...safe, enabled: false }), false);
-  assert.equal(canAutoPublish({ ...safe, confidence: 0.89 }), false);
-  assert.equal(canAutoPublish({ ...safe, contentChars: 799 }), false);
+  assert.equal(canAutoPublish({ ...safe, confidence: 0.59 }), false);
+  assert.equal(canAutoPublish({ ...safe, contentChars: 599 }), false);
   assert.equal(canAutoPublish({ ...safe, sourceCount: 0 }), false);
   assert.equal(canAutoPublish({ ...safe, hasConflict: true }), false);
   assert.equal(canAutoPublish({ ...safe, isRumor: true }), false);
@@ -391,7 +391,7 @@ test("后台提供自动发布开关但不绕过安全发布条件", async () =>
   assert.match(route, /\[5, 10, 20, 50, 100\]/);
   assert.match(component, /PUBLISH_LIMITS = \[5, 10, 20, 50, 100\]/);
   assert.match(component, /每次最多/);
-  assert.match(component, /高置信度、来源和非重复/);
+  assert.match(component, /置信度≥0\.60、正文≥600字/);
   assert.doesNotMatch(route, /status = 'published'/);
 });
 

@@ -117,7 +117,7 @@ export default async function AdminPage() {
               <summary>安全发布流程与运行参数</summary>
               <ol className="workflow"><li><b>1</b>读取 RSS 或手动新建文章</li><li><b>2</b>核对标题、正文与来源</li><li><b>3</b>排除版本冲突与重复选题</li><li><b>4</b>补全栏目、摘要和标签</li><li><b>5</b>人工审核后手动发布</li></ol>
               <h3>当前系统运行参数</h3>
-              <div className="config-list">RSS_TRANSLATION_ENABLED=true<br />AI_REWRITE_ENABLED=false<br />FULL_ARTICLE_TRANSLATION=false<br />SIMILARITY=0.45<br />AUTO_PUBLISH={autoPublishEnabled ? "true" : "false"}<br />AUTO_PUBLISH_LIMIT={autoPublishLimit}</div>
+              <div className="config-list">RSS_TRANSLATION_ENABLED=true<br />AI_REWRITE_ENABLED=false<br />FULL_ARTICLE_TRANSLATION=false<br />SIMILARITY=0.45<br />AUTO_PUBLISH={autoPublishEnabled ? "true" : "false"}<br />AUTO_PUBLISH_LIMIT={autoPublishLimit}<br />AUTO_PUBLISH_CONFIDENCE=0.60<br />AUTO_PUBLISH_MIN_CHARS=600</div>
             </details>
           </aside>
         </div>
