@@ -383,8 +383,14 @@ test("后台提供自动发布开关但不绕过安全发布条件", async () =>
   const component = await readFile(new URL("../components/AutoPublishToggle.tsx", import.meta.url), "utf8");
   assert.match(page, /AutoPublishToggle/);
   assert.match(page, /auto_publish_enabled/);
+  assert.match(page, /auto_publish_limit/);
+  assert.match(page, /AUTO_PUBLISH_LIMIT/);
   assert.match(route, /getAdminUser/);
   assert.match(route, /site_settings/);
+  assert.match(route, /auto_publish_limit/);
+  assert.match(route, /\[5, 10, 20, 50, 100\]/);
+  assert.match(component, /PUBLISH_LIMITS = \[5, 10, 20, 50, 100\]/);
+  assert.match(component, /每次最多/);
   assert.match(component, /高置信度、来源和非重复/);
   assert.doesNotMatch(route, /status = 'published'/);
 });

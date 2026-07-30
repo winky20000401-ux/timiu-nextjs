@@ -218,6 +218,9 @@ img { max-width: 100%; }
 .status-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .setting-toggle { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 .setting-toggle small { max-width: 280px; color: #5d6875; font-size: 11px; text-align: right; }
+.auto-publish-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; align-items: center; }
+.auto-publish-controls label { display: inline-flex; gap: 5px; align-items: center; color: #526d13; font-size: 11px; font-weight: 800; }
+.auto-publish-controls select { padding: 7px 9px; border: 1px solid #cfd8ca; border-radius: 999px; background: white; color: #263700; font-size: 11px; font-weight: 800; }
 .toggle-button { border: 1px solid #cfd8ca; border-radius: 999px; background: #fff; color: #526d13; padding: 8px 12px; font-size: 11px; font-weight: 800; cursor: pointer; }
 .toggle-button.on { border-color: #9eff22; background: #eaffce; color: #263700; }
 .toggle-button:disabled { cursor: wait; opacity: .65; }
