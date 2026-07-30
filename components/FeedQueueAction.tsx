@@ -12,6 +12,7 @@ export function FeedQueueAction({
   needsTranslation?: boolean;
 }) {
   const [message, setMessage] = useState("");
+  const [draft, setDraft] = useState<{ id: number; title?: string } | null>(null);
   const [loading, setLoading] = useState<"manual" | "gemini" | null>(null);
   async function createDraft(mode: "manual" | "gemini") {
     setLoading(mode);
@@ -26,7 +27,10 @@ export function FeedQueueAction({
         setMessage(result.error ?? "草稿创建失败");
         return;
       }
-      window.location.assign(`/admin/articles/${result.id}`);
+      const draftUrl = `/admin/articles/${result.id}`;
+      setDraft({ id: result.id, title: result.title });
+      setMessage("草稿已生成，已尝试在新分页打开");
+      window.open(draftUrl, "_blank", "noopener,noreferrer");
     } catch {
       setMessage("操作失败，请稍后重试");
     } finally {
@@ -41,5 +45,6 @@ export function FeedQueueAction({
       {loading === "manual" ? "处理中…" : needsTranslation ? "不翻译，生成原文草稿" : "生成短讯草稿"}
     </button>
     {message && <small role="status">{message}</small>}
+    {draft && <small><a href={`/admin/articles/${draft.id}`} target="_blank" rel="noreferrer">打开草稿：{draft.title ?? `#${draft.id}`} ↗</a></small>}
   </div>;
 }

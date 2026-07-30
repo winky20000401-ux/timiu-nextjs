@@ -361,6 +361,14 @@ test("RSS 审核队列支持选择批量生成数量但全部保留人工审核"
   assert.doesNotMatch(component, /status = 'published'|\/status/);
 });
 
+test("RSS 队列单条生成草稿后在新分页打开编辑页", async () => {
+  const component = await readFile(new URL("../components/FeedQueueAction.tsx", import.meta.url), "utf8");
+  assert.match(component, /window\.open\(draftUrl, "_blank"/);
+  assert.match(component, /target="_blank"/);
+  assert.match(component, /打开草稿/);
+  assert.doesNotMatch(component, /window\.location\.assign\(`\/admin\/articles\/\$\{result\.id\}`\)/);
+});
+
 test("首页焦点和侧栏文章优先展示真实封面图", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.match(page, /lead\.coverObjectKey/);
