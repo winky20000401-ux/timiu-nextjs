@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdminUser } from "@/app/admin-auth";
 import { AutoPublishToggle } from "@/components/AutoPublishToggle";
+import { ClearFailedJobsButton } from "@/components/ClearFailedJobsButton";
 import { IngestButton } from "@/components/IngestButton";
 import { QuickArticleActions } from "@/components/QuickArticleActions";
 import { sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
@@ -101,7 +102,7 @@ export default async function AdminPage() {
           </section>
           <aside>
             <section className="admin-card failed-jobs-card" id="failed-jobs">
-              <h2>失败任务记录</h2>
+              <div className="card-title-row"><h2>失败任务记录</h2><ClearFailedJobsButton count={stats?.failed_jobs ?? 0} /></div>
               {failedJobs.results.length === 0 ? <p className="muted">暂无失败任务。系统运行很干净，挺争气。</p> :
                 <table className="admin-table compact-table">
                   <thead><tr><th>任务</th><th>错误</th><th>时间</th></tr></thead>

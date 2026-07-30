@@ -469,10 +469,41 @@ test("审核列表快速发布成功后也自动回到工作台", async () => {
 
 test("文章管理中已发布文章标题使用公开文章链接以支持新分页打开", async () => {
   const page = await readFile(new URL("../app/admin/articles/page.tsx", import.meta.url), "utf8");
+  const manager = await readFile(new URL("../components/ArticleBulkManager.tsx", import.meta.url), "utf8");
   assert.match(page, /SELECT id, title, slug, status/);
-  assert.match(page, /article\.status === "published"/);
-  assert.match(page, /href=\{`\/article\/\$\{article\.slug\}`\}/);
-  assert.match(page, /href=\{`\/admin\/articles\/\$\{article\.id\}`\}/);
+  assert.match(manager, /article\.status === "published"/);
+  assert.match(manager, /href=\{`\/article\/\$\{article\.slug\}`\}/);
+  assert.match(manager, /href=\{`\/admin\/articles\/\$\{article\.id\}`\}/);
+});
+
+test("文章管理支持搜索和批量安全操作", async () => {
+  const page = await readFile(new URL("../app/admin/articles/page.tsx", import.meta.url), "utf8");
+  const manager = await readFile(new URL("../components/ArticleBulkManager.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/admin/articles/bulk-status/route.ts", import.meta.url), "utf8");
+  assert.match(page, /q\?: string/);
+  assert.match(page, /title LIKE \?/);
+  assert.match(page, /ArticleBulkManager/);
+  assert.match(page, /admin-search-form/);
+  assert.match(manager, /批量发布/);
+  assert.match(manager, /批量撤回/);
+  assert.match(manager, /批量归档/);
+  assert.match(route, /MAX_BULK_ARTICLES = 100/);
+  assert.match(route, /article_sources/);
+  assert.match(route, /缺少标题、描述、正文、栏目或来源/);
+  assert.match(route, /publication_logs/);
+  assert.doesNotMatch(route, /DELETE FROM articles/);
+});
+
+test("工作台失败任务可以清理但不会删除日志", async () => {
+  const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  const component = await readFile(new URL("../components/ClearFailedJobsButton.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/admin/jobs/clear-failed/route.ts", import.meta.url), "utf8");
+  assert.match(page, /ClearFailedJobsButton/);
+  assert.match(component, /清理失败记录/);
+  assert.match(component, /不会删除/);
+  assert.match(route, /status = 'cleared'/);
+  assert.match(route, /WHERE status = 'failed'/);
+  assert.doesNotMatch(route, /DELETE FROM automation_jobs/);
 });
 
 test("管理员邮箱白名单会规范化大小写和空格", () => {

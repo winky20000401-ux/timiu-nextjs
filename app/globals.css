@@ -303,6 +303,7 @@ img { max-width: 100%; }
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td { padding: 13px 8px; border-bottom: 1px solid #e5e9e6; text-align: left; font-size: 12px; }
 .admin-table th { color: #7d8791; font-size: 10px; }
+.admin-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: #9eff22; }
 .article-row-link { color: #17202b; font-weight: 750; }
 .article-row-link:hover { color: #587500; text-decoration: underline; }
 .quick-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 210px; }
@@ -324,6 +325,12 @@ img { max-width: 100%; }
 .workflow-panel h3 { margin: 22px 0 0; font-size: 12px; }
 .config-list { margin-top: 22px; padding: 16px; background: #f3f6f3; color: #66717d; font: 11px/1.9 ui-monospace, monospace; }
 .failed-jobs-card { margin-bottom: 22px; }
+.card-title-row { display: flex; justify-content: space-between; gap: 14px; align-items: center; margin-bottom: 18px; }
+.card-title-row h2 { margin: 0; }
+.clear-failed-control { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.clear-failed-control button { padding: 7px 9px; border: 1px solid #c7d0ca; background: #f9fbf8; color: #384754; cursor: pointer; font: 800 10px/1.2 inherit; }
+.clear-failed-control button:disabled { cursor: not-allowed; opacity: .5; }
+.clear-failed-control small { max-width: 180px; color: #526d13; font-size: 10px; text-align: right; }
 .compact-table { font-size: 11px; }
 .compact-table code { white-space: normal; word-break: break-word; }
 .import-grid { grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); margin-bottom: 22px; }
@@ -347,6 +354,16 @@ img { max-width: 100%; }
 .article-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: -12px 0 20px; }
 .article-filters a { padding: 8px 12px; border: 1px solid #ccd4cf; background: white; color: #56626e; font-size: 11px; font-weight: 800; }
 .article-filters a.active { border-color: var(--lime); background: var(--lime); color: #17202b; }
+.admin-search-form { display: flex; flex-wrap: wrap; gap: 10px; margin: -6px 0 18px; }
+.admin-search-form input { min-width: min(100%, 320px); flex: 1; padding: 11px 12px; border: 1px solid #cfd7d2; background: white; color: #17202b; }
+.admin-search-form button, .admin-search-form a { display: inline-flex; align-items: center; padding: 11px 14px; border: 1px solid #bfc8c2; background: white; color: #2f3c49; cursor: pointer; font-size: 12px; font-weight: 800; }
+.admin-search-form button { border-color: var(--lime); background: var(--lime); color: #17202b; }
+.bulk-manager { display: grid; gap: 12px; }
+.bulk-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px solid #dfe5e1; background: #f8faf7; }
+.bulk-toolbar span { margin-right: auto; color: #52606c; font-size: 12px; font-weight: 800; }
+.bulk-toolbar button { padding: 8px 10px; border: 1px solid #c7d0ca; background: white; color: #384754; cursor: pointer; font: 800 11px/1.2 inherit; }
+.bulk-toolbar button:first-of-type { border-color: #182633; background: #182633; color: white; }
+.bulk-toolbar button:disabled { cursor: not-allowed; opacity: .5; }
 .not-found { display: grid; min-height: 70vh; place-items: center; padding: 40px; text-align: center; background: var(--ink); color: white; }
 .not-found strong { display: block; color: var(--lime); font: italic 900 100px Arial Black; }
 .not-found h1 { margin: 0; font-size: 32px; }
