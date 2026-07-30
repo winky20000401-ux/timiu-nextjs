@@ -4,6 +4,7 @@ import { AutoPublishRunButton } from "@/components/AutoPublishRunButton";
 import { AutoPublishToggle } from "@/components/AutoPublishToggle";
 import { ClearFailedJobsButton } from "@/components/ClearFailedJobsButton";
 import { IngestButton } from "@/components/IngestButton";
+import { OneClickRssWorkflow } from "@/components/OneClickRssWorkflow";
 import { QuickArticleActions } from "@/components/QuickArticleActions";
 import { sanitizeGeminiErrorMessage } from "@/lib/gemini-translation";
 
@@ -78,6 +79,7 @@ export default async function AdminPage() {
       <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/"><strong>TIMIU</strong><span>编辑工作台</span></Link><div className="admin-user"><span>{user.displayName}</span><form action="/api/admin/auth/logout" method="post"><button className="link-button">退出</button></form></div></div></header>
       <div className="shell admin-page">
         <div className="admin-heading"><div><h1>内容工作台</h1><p>处理 RSS 线索、手动草稿、人工审核与发布记录。</p><div className="admin-actions"><IngestButton /><Link className="primary-button admin-create-button" href="/admin/articles/new">＋ 新建文章</Link><Link className="secondary-button" href="/admin/feed">RSS 审核队列 →</Link><Link className="secondary-button" href="/admin/imports">攻略导入中心 →</Link><Link className="secondary-button" href="/admin/articles">文章管理 →</Link></div></div><div className="status-stack"><span className="status-pill">Gemini RSS 翻译：{geminiTranslationReady ? "已就绪" : "待配置密钥"}</span><AutoPublishToggle enabled={autoPublishEnabled} limit={autoPublishLimit} /><AutoPublishRunButton enabled={autoPublishEnabled} limit={autoPublishLimit} /></div></div>
+        <OneClickRssWorkflow autoPublishEnabled={autoPublishEnabled} limit={autoPublishLimit} />
         <div className="stats-grid">
           <Link className="stat-card" href="/admin/articles?status=draft"><span>草稿</span><strong>{stats?.drafts ?? 0}</strong><small>查看草稿 →</small></Link>
           <Link className="stat-card" href="/admin/articles?review=required"><span>需要人工审核</span><strong>{stats?.review_required ?? 0}</strong><small>开始审核 →</small></Link>

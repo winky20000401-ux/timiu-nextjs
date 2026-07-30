@@ -414,6 +414,23 @@ test("后台可以手动执行自动发布检查并保留安全条件", async ()
   assert.match(route, /没有有效来源/);
 });
 
+test("后台提供一键 RSS 处理流程但仍逐步执行安全检查", async () => {
+  const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  const component = await readFile(new URL("../components/OneClickRssWorkflow.tsx", import.meta.url), "utf8");
+  const pendingRoute = await readFile(new URL("../app/api/admin/feed/pending/route.ts", import.meta.url), "utf8");
+  assert.match(page, /OneClickRssWorkflow/);
+  assert.match(component, /一键处理 RSS/);
+  assert.match(component, /\/api\/automation\/ingest/);
+  assert.match(component, /\/api\/admin\/feed\/pending/);
+  assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
+  assert.match(component, /\/api\/admin\/automation\/auto-publish/);
+  assert.match(component, /Math\.min\(limit, 20\)/);
+  assert.match(component, /Gemini 生成明细/);
+  assert.match(pendingRoute, /getAdminUser/);
+  assert.match(pendingRoute, /processing_status = 'translation_required'/);
+  assert.match(pendingRoute, /LIMIT \?/);
+});
+
 test("工作台失败任务卡片跳转到真实失败记录区", async () => {
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   assert.match(page, /href="\/admin#failed-jobs"/);

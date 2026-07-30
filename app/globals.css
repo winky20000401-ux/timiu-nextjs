@@ -227,6 +227,23 @@ img { max-width: 100%; }
 .auto-publish-runner { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 330px; }
 .auto-publish-runner small { color: #5d6875; font-size: 11px; text-align: right; }
 .auto-publish-runner ol { margin: 2px 0 0; padding-left: 18px; color: #5d6875; font-size: 11px; line-height: 1.5; text-align: left; }
+.one-click-panel { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 14px 18px; align-items: center; margin: -12px 0 28px; padding: 18px; border: 1px solid #cfd8ca; background: #fbfdf8; box-shadow: 0 10px 26px #1826330a; }
+.one-click-panel strong, .one-click-panel span { display: block; }
+.one-click-panel strong { color: #17202b; font-size: 17px; }
+.one-click-panel span { margin-top: 4px; color: #677380; font-size: 12px; }
+.one-click-panel .primary-button { border: 0; cursor: pointer; font-size: 12px; }
+.one-click-panel .primary-button:disabled { cursor: not-allowed; opacity: .55; }
+.one-click-panel > ol { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.workflow-step { padding: 12px; border: 1px solid #dfe5e1; background: white; }
+.workflow-step b, .workflow-step small { display: block; }
+.workflow-step b { color: #2e3946; font-size: 12px; }
+.workflow-step small { margin-top: 5px; color: #6b7683; font-size: 11px; line-height: 1.5; }
+.workflow-step.running { border-color: #9eff22; background: #f2ffe3; }
+.workflow-step.done { border-color: #b9dac0; background: #f2fbf1; }
+.workflow-step.failed { border-color: #f0b4aa; background: #fff3f0; }
+.one-click-panel details, .one-click-panel p { grid-column: 1 / -1; margin: 0; color: #526d13; font-size: 12px; }
+.one-click-panel summary { cursor: pointer; font-weight: 800; }
+.one-click-panel ul { margin: 8px 0 0; padding-left: 18px; color: #657080; }
 .ingest-control { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
 .ingest-control .primary-button { border: 0; cursor: pointer; font-size: 12px; }
 .ingest-control .primary-button:disabled { cursor: wait; opacity: .65; }
@@ -429,6 +446,8 @@ img { max-width: 100%; }
   .status-pill { display: inline-block; margin-top: 14px; }
   .status-stack, .setting-toggle, .auto-publish-runner { align-items: flex-start; }
   .auto-publish-runner small { text-align: left; }
+  .one-click-panel { grid-template-columns: 1fr; }
+  .one-click-panel > ol { grid-template-columns: 1fr; }
   .admin-card { overflow-x: auto; }
   .editor-row { grid-template-columns: 1fr; }
   .cover-editor-grid { grid-template-columns: 1fr; }
