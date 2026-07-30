@@ -67,8 +67,9 @@ img { max-width: 100%; }
 .lead-art small, .lead-mark { position: relative; font: 700 10px Arial, sans-serif; letter-spacing: .18em; text-transform: uppercase; }
 .lead-mark { position: absolute; top: 30px; left: 34px; }
 .lead-art small { margin-top: 18px; color: var(--lime); }
-.lead-cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-.lead-art:has(.lead-cover-image)::after { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(7 17 31 / .08), rgb(7 17 31 / .48)); content: ""; }
+.lead-art:has(.lead-cover-image) { background: radial-gradient(circle at 50% 40%, #16233a, var(--ink) 74%); }
+.lead-cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.lead-art:has(.lead-cover-image)::after { position: absolute; inset: 0; background: linear-gradient(180deg, rgb(7 17 31 / .02), rgb(7 17 31 / .18)); content: ""; }
 .lead-copy { display: flex; flex-direction: column; justify-content: center; padding: clamp(28px, 4vw, 48px); }
 .eyebrow { display: flex; gap: 14px; color: #6d7886; font: 750 10px Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .eyebrow > :first-child { color: #506119; }

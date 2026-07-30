@@ -380,6 +380,7 @@ test("首页焦点和侧栏文章优先展示真实封面图", async () => {
   assert.match(page, /mediaUrl\(lead\.coverObjectKey\)/);
   assert.match(page, /article\.coverObjectKey/);
   assert.match(page, /article-cover-image/);
+  assert.match(styles, /\.lead-cover-image \{[^}]*object-fit: contain/s);
   assert.match(styles, /\.mini-art \{[^}]*aspect-ratio: 16 \/ 9/s);
   assert.match(styles, /\.mini-art \.article-cover-image \{[^}]*object-fit: cover/s);
   assert.doesNotMatch(styles, /\.side-lead \{[^}]*grid-template-columns: 120px 1fr/s);
