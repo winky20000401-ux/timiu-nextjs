@@ -24,13 +24,18 @@ export async function POST() {
     const rejected = feedRejectionSummary(rawItems, 100);
     const statements = items.map((item) => env.DB.prepare(
       `INSERT OR IGNORE INTO feed_items
-       (external_id, feed_url, title, url, summary, published_at, fingerprint, processing_status, raw_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (external_id, feed_url, title, url, summary, published_at, fingerprint, processing_status, raw_json, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
     ).bind(
       item.externalId, feedUrl, item.title, item.url, item.summary,
       item.publishedAt, item.fingerprint, item.status, item.rawJson,
     ));
     const results = statements.length ? await env.DB.batch(statements) : [];
+    if (items.length) {
+      await env.DB.batch(items.map((item) => env.DB.prepare(
+        "UPDATE feed_items SET last_seen_at = CURRENT_TIMESTAMP WHERE external_id = ?"
+      ).bind(item.externalId)));
+    }
     const imported = results.reduce((total, result) => total + Number(result.meta.changes ?? 0), 0);
     const alreadyStored = Math.max(0, items.length - imported);
     const newestPublishedAt = items

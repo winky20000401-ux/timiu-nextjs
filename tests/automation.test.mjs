@@ -133,6 +133,7 @@ test("RSS 入库结果区分新条目与数据库已存在条目", async () => {
   assert.match(route, /alreadyStored/);
   assert.match(route, /lowRelevance/);
   assert.match(route, /newestPublishedAt/);
+  assert.match(route, /last_seen_at = CURRENT_TIMESTAMP/);
   assert.match(button, /没有新条目/);
   assert.match(button, /已存在/);
   assert.match(button, /低相关/);
@@ -428,9 +429,12 @@ test("RSS 审核队列显示每条线索的读取入库时间", async () => {
   const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(page, /created_at/);
-  assert.match(page, /读取时间/);
-  assert.match(page, /formatQueueTime\(item\.created_at\)/);
+  assert.match(page, /last_seen_at/);
+  assert.match(page, /最近读取/);
+  assert.match(page, /ORDER BY COALESCE\(last_seen_at, created_at\) DESC/);
+  assert.match(page, /formatQueueTime\(item\.last_seen_at \?\? item\.created_at\)/);
   assert.match(page, /原文 \{item\.published_at \? formatDate\(item\.published_at\) : "未记录"\}/);
+  assert.match(page, /首次入库 \{formatQueueTime\(item\.created_at\)\}/);
   assert.match(styles, /\.rss-time/);
 });
 
