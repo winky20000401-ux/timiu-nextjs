@@ -58,13 +58,16 @@ const FEED_FILTERS = [
 export default async function FeedQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   const filters = await searchParams;
   const allowedStatuses = new Set(FEED_FILTERS.map((item) => item.status).filter(Boolean));
   const status = allowedStatuses.has(filters.status ?? "") ? filters.status! : "";
   const query = String(filters.q ?? "").trim().slice(0, 80);
-  const returnTo = feedFilterHref(status, query);
+  const currentPage = parsePositivePage(filters.page);
+  const pageSize = 100;
+  const offset = (currentPage - 1) * pageSize;
+  const returnTo = feedFilterHref(status, query, currentPage);
   await requireAdminUser(returnTo);
   const { env } = await import("cloudflare:workers");
   const conditions: string[] = [];
@@ -81,10 +84,13 @@ export default async function FeedQueuePage({
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const queueStatement = env.DB.prepare(
     `SELECT id, title, url, summary, published_at, created_at, last_seen_at, processing_status
-     FROM feed_items ${where} ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT 100`
+     FROM feed_items ${where} ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT ? OFFSET ?`
   );
-  const [result, failedJobs, usage, feedStats] = await Promise.all([
-    bindings.length ? queueStatement.bind(...bindings).all<QueueItem>() : queueStatement.all<QueueItem>(),
+  const countStatement = env.DB.prepare(`SELECT COUNT(*) AS total FROM feed_items ${where}`);
+  const queueBindings = [...bindings, pageSize, offset];
+  const [result, filteredCount, failedJobs, usage, feedStats] = await Promise.all([
+    queueStatement.bind(...queueBindings).all<QueueItem>(),
+    bindings.length ? countStatement.bind(...bindings).first<{ total: number }>() : countStatement.first<{ total: number }>(),
     env.DB.prepare(
       `SELECT id, model, error_message, finished_at
        FROM automation_jobs
@@ -113,15 +119,19 @@ export default async function FeedQueuePage({
        FROM feed_items`
     ).first<FeedStats>(),
   ]);
+  const totalFiltered = filteredCount?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const batchTranslationIds = result.results
     .filter((item) => item.processing_status === "translation_required")
     .slice(0, 20)
     .map((item) => item.id);
   const activeLabel = `${status ? statusLabel(status) : "全部线索"}${query ? ` · 搜索“${query}”` : ""}`;
+  const visibleStart = totalFiltered === 0 ? 0 : offset + 1;
+  const visibleEnd = Math.min(offset + result.results.length, totalFiltered);
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
     <div className="shell admin-page">
-      <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">{activeLabel} · 当前显示 {result.results.length} 条 · 总收录 {(feedStats?.total ?? 0).toLocaleString()} 条</span></div>
+      <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">{activeLabel} · {visibleStart}-{visibleEnd} / {totalFiltered.toLocaleString()} 条 · 总收录 {(feedStats?.total ?? 0).toLocaleString()} 条</span></div>
       <div className="feed-stats-grid" aria-label="RSS 收录统计">
         <Link className={!status ? "active" : ""} href={feedFilterHref("", query)}><span>总收录</span><strong>{(feedStats?.total ?? 0).toLocaleString()}</strong><small>查看全部 →</small></Link>
         <Link className={status === "translation_required" ? "active" : ""} href={feedFilterHref("translation_required", query)}><span>待翻译</span><strong>{(feedStats?.translation_required ?? 0).toLocaleString()}</strong><small>进入待翻译 →</small></Link>
@@ -184,6 +194,11 @@ export default async function FeedQueuePage({
               /></td>
             </tr>)}</tbody>
           </table>}
+        {totalPages > 1 && <nav className="pagination-nav" aria-label="RSS 队列分页">
+          {currentPage > 1 ? <Link href={feedFilterHref(status, query, currentPage - 1)}>← 上一页</Link> : <span>← 上一页</span>}
+          <strong>第 {Math.min(currentPage, totalPages)} / {totalPages} 页</strong>
+          {currentPage < totalPages ? <Link href={feedFilterHref(status, query, currentPage + 1)}>下一页 →</Link> : <span>下一页 →</span>}
+        </nav>}
       </section>
       {failedJobs.results.length > 0 && <section className="admin-card">
         <h2>最近 Gemini 失败记录</h2>
@@ -227,9 +242,15 @@ function statusLabel(status: string) {
   } as Record<string, string>)[status] ?? status;
 }
 
-function feedFilterHref(status: string, query: string) {
+function feedFilterHref(status: string, query: string, page = 1) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (query) params.set("q", query);
+  if (page > 1) params.set("page", String(page));
   return `/admin/feed${params.toString() ? `?${params.toString()}` : ""}`;
+}
+
+function parsePositivePage(value: string | undefined) {
+  const page = Number(value ?? "1");
+  return Number.isInteger(page) && page > 0 ? Math.min(page, 9999) : 1;
 }

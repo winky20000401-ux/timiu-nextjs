@@ -349,7 +349,7 @@ test("RSS 审核队列显示累计收录总数与状态统计", async () => {
   assert.match(page, /总收录/);
   assert.match(page, /翻译失败/);
   assert.match(page, /处理中/);
-  assert.match(page, /当前显示 \{result\.results\.length\} 条 · 总收录/);
+  assert.match(page, /\{visibleStart\}-\{visibleEnd\} \/ \{totalFiltered\.toLocaleString\(\)\} 条 · 总收录/);
 });
 
 test("RSS 审核队列支持选择批量生成数量但全部保留人工审核", async () => {
@@ -441,7 +441,7 @@ test("RSS 审核队列显示每条线索的读取入库时间", async () => {
 test("RSS 审核队列支持按状态筛选和关键词搜索", async () => {
   const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(page, /searchParams: Promise<\{ status\?: string; q\?: string \}>/);
+  assert.match(page, /searchParams: Promise<\{ status\?: string; q\?: string; page\?: string \}>/);
   assert.match(page, /FEED_FILTERS/);
   assert.match(page, /processing_status = \?/);
   assert.match(page, /title LIKE \? OR summary LIKE \? OR url LIKE \?/);
@@ -449,6 +449,20 @@ test("RSS 审核队列支持按状态筛选和关键词搜索", async () => {
   assert.match(page, /搜索 RSS 标题、摘要或来源链接/);
   assert.match(page, /当前筛选没有匹配的 RSS 线索/);
   assert.match(styles, /\.feed-filters/);
+});
+
+test("RSS 审核队列支持分页浏览超过 100 条线索", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /const pageSize = 100/);
+  assert.match(page, /OFFSET \?/);
+  assert.match(page, /SELECT COUNT\(\*\) AS total FROM feed_items/);
+  assert.match(page, /parsePositivePage/);
+  assert.match(page, /pagination-nav/);
+  assert.match(page, /上一页/);
+  assert.match(page, /下一页/);
+  assert.match(page, /page > 1/);
+  assert.match(styles, /\.pagination-nav/);
 });
 
 test("RSS 收录统计卡片可直接跳转到对应队列", async () => {

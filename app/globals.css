@@ -346,6 +346,11 @@ img { max-width: 100%; }
 .rss-time { min-width: 118px; color: #2f3b47; }
 .rss-time strong { white-space: nowrap; font-size: 12px; }
 .rss-time small { color: #85909b; font-size: 10px; }
+.pagination-nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid #e1e6e2; }
+.pagination-nav a, .pagination-nav span, .pagination-nav strong { padding: 8px 12px; border: 1px solid #cfd8ca; background: white; color: #4b5663; font-size: 12px; font-weight: 800; }
+.pagination-nav a { color: #486800; }
+.pagination-nav span { opacity: .45; }
+.pagination-nav strong { border-color: var(--lime); background: #f4ffe7; color: #17202b; }
 .feed-usage-guide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 20px; padding: 0; list-style: none; }
 .feed-usage-guide li { padding: 16px; border: 1px solid #d7ddda; border-left: 3px solid var(--lime); background: white; }
 .feed-usage-guide strong, .feed-usage-guide span { display: block; }
