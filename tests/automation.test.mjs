@@ -364,12 +364,19 @@ test("RSS 审核队列支持选择批量生成数量但全部保留人工审核"
   assert.match(component, /\[3, 5, 10, 20\]/);
   assert.match(component, /requestedCount/);
   assert.match(component, /fallbackBatchCount/);
+  assert.match(component, /selectedCount/);
+  assert.match(component, /setVisibleSelection/);
+  assert.match(component, /全选本页待翻译/);
+  assert.match(component, /清空选择/);
+  assert.match(component, /已选 \{selectedCount\} 条/);
   assert.match(component, /resolveBatchIds/);
   assert.match(component, /\[data-rss-batch-id\]:checked/);
+  assert.match(component, /\[data-rss-batch-id\]:not\(:disabled\)/);
   assert.match(component, /Math\.min\(requestedCount, 20\)/);
   assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
   assert.match(component, /不会自动发布/);
   assert.match(styles, /\.rss-select-cell/);
+  assert.match(styles, /\.batch-selection-tools/);
   assert.doesNotMatch(component, /status = 'published'|\/status/);
 });
 

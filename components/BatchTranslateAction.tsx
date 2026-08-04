@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type BatchResult = {
   id: number;
@@ -14,13 +14,30 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
   const [requestedCount, setRequestedCount] = useState(3);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BatchResult[]>([]);
+  const [selectedCount, setSelectedCount] = useState(0);
   const fallbackBatchCount = Math.min(ids.length, requestedCount, 20);
+
+  useEffect(() => {
+    function refreshSelectedCount() {
+      setSelectedCount(document.querySelectorAll<HTMLInputElement>("[data-rss-batch-id]:checked").length);
+    }
+    refreshSelectedCount();
+    document.addEventListener("change", refreshSelectedCount);
+    return () => document.removeEventListener("change", refreshSelectedCount);
+  }, []);
 
   function resolveBatchIds() {
     const selectedIds = Array.from(document.querySelectorAll<HTMLInputElement>("[data-rss-batch-id]:checked"))
       .map((input) => Number(input.value))
       .filter((id) => Number.isInteger(id) && ids.includes(id));
     return (selectedIds.length ? selectedIds : ids.slice(0, Math.min(requestedCount, 20))).slice(0, 20);
+  }
+
+  function setVisibleSelection(checked: boolean) {
+    document.querySelectorAll<HTMLInputElement>("[data-rss-batch-id]:not(:disabled)").forEach((input) => {
+      input.checked = checked;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
   }
 
   async function runBatch() {
@@ -60,6 +77,11 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
       <button className="primary-button" type="button" onClick={runBatch} disabled={loading || ids.length === 0}>
         {loading ? `正在生成 ${results.length}…` : "批量生成 Gemini 草稿"}
       </button>
+    </div>
+    <div className="batch-selection-tools" aria-label="RSS 批量选择">
+      <button type="button" onClick={() => setVisibleSelection(true)} disabled={loading || ids.length === 0}>全选本页待翻译</button>
+      <button type="button" onClick={() => setVisibleSelection(false)} disabled={loading || selectedCount === 0}>清空选择</button>
+      <span>已选 {selectedCount} 条</span>
     </div>
     <p className="muted">可以先在下方勾选指定 RSS；未勾选时会按当前顺序处理 {fallbackBatchCount} 篇。系统只处理“需人工翻译”的 RSS，最多 20 篇，生成后全部进入人工审核，不会自动发布。</p>
     {results.length > 0 && <ol>
