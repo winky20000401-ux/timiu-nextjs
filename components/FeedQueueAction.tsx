@@ -6,14 +6,16 @@ export function FeedQueueAction({
   id,
   disabled = false,
   needsTranslation = false,
+  status = "",
 }: {
   id: number;
   disabled?: boolean;
   needsTranslation?: boolean;
+  status?: string;
 }) {
   const [message, setMessage] = useState("");
   const [draft, setDraft] = useState<{ id: number; title?: string } | null>(null);
-  const [loading, setLoading] = useState<"manual" | "gemini" | null>(null);
+  const [loading, setLoading] = useState<"manual" | "gemini" | "requeue" | null>(null);
   async function createDraft(mode: "manual" | "gemini") {
     setLoading(mode);
     setMessage("");
@@ -37,7 +39,32 @@ export function FeedQueueAction({
       setLoading(null);
     }
   }
+  async function requeueForTranslation() {
+    setLoading("requeue");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/feed/${id}/status`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "translation_required" }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) {
+        setMessage(result.error ?? "状态更新失败");
+        return;
+      }
+      setMessage("已转入待翻译队列");
+      window.location.href = "/admin/feed?status=translation_required";
+    } catch {
+      setMessage("操作失败，请稍后重试");
+    } finally {
+      setLoading(null);
+    }
+  }
   return <div className="queue-action">
+    {status === "low_relevance" && <button className="requeue-action" type="button" onClick={requeueForTranslation} disabled={loading !== null}>
+      {loading === "requeue" ? "转入中…" : "转为待翻译"}
+    </button>}
     {needsTranslation && <button className="gemini-action" type="button" onClick={() => createDraft("gemini")} disabled={disabled || loading !== null}>
       {loading === "gemini" ? "Gemini 翻译中…" : "Gemini 生成中文草稿"}
     </button>}

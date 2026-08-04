@@ -464,6 +464,22 @@ test("RSS 收录统计卡片可直接跳转到对应队列", async () => {
   assert.match(styles, /\.feed-stats-grid > a\.active/);
 });
 
+test("低相关 RSS 线索可人工转回待翻译队列", async () => {
+  const component = await readFile(new URL("../components/FeedQueueAction.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/api/admin/feed/[id]/status/route.ts", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(component, /status === "low_relevance"/);
+  assert.match(component, /转为待翻译/);
+  assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/status/);
+  assert.match(component, /window\.location\.href = "\/admin\/feed\?status=translation_required"/);
+  assert.match(page, /status=\{item\.processing_status\}/);
+  assert.match(route, /ALLOWED_TRANSITIONS/);
+  assert.match(route, /low_relevance: \["translation_required"\]/);
+  assert.match(route, /sameOrigin/);
+  assert.match(styles, /\.queue-action \.requeue-action/);
+});
+
 test("后台提供自动发布开关但不绕过安全发布条件", async () => {
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/admin/settings/auto-publish/route.ts", import.meta.url), "utf8");

@@ -180,6 +180,7 @@ export default async function FeedQueuePage({
                 id={item.id}
                 disabled={!["review", "translation_required", "translation_failed"].includes(item.processing_status)}
                 needsTranslation={["translation_required", "translation_failed"].includes(item.processing_status)}
+                status={item.processing_status}
               /></td>
             </tr>)}</tbody>
           </table>}

@@ -353,6 +353,7 @@ img { max-width: 100%; }
 .feed-usage-guide span { color: #6b7683; font-size: 11px; line-height: 1.6; }
 .queue-action button { padding: 7px 9px; border: 1px solid #b8c2bc; background: #f7faf6; cursor: pointer; font-size: 11px; }
 .queue-action .gemini-action { border-color: #6d4bd1; background: #f1edff; color: #4b2ca4; }
+.queue-action .requeue-action { border-color: #9ed62f; background: #f2ffe3; color: #405800; }
 .queue-action { display: flex; flex-wrap: wrap; gap: 6px; }
 .queue-action button:disabled { cursor: not-allowed; opacity: .5; }
 .queue-action small { display: block; max-width: 180px; margin-top: 6px; color: #687481; }
