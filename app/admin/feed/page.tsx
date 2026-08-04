@@ -121,6 +121,7 @@ export default async function FeedQueuePage({
   ]);
   const totalFiltered = filteredCount?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const displayPage = Math.min(currentPage, totalPages);
   const batchTranslationIds = result.results
     .filter((item) => item.processing_status === "translation_required")
     .slice(0, 20)
@@ -195,9 +196,17 @@ export default async function FeedQueuePage({
             </tr>)}</tbody>
           </table>}
         {totalPages > 1 && <nav className="pagination-nav" aria-label="RSS 队列分页">
-          {currentPage > 1 ? <Link href={feedFilterHref(status, query, currentPage - 1)}>← 上一页</Link> : <span>← 上一页</span>}
-          <strong>第 {Math.min(currentPage, totalPages)} / {totalPages} 页</strong>
-          {currentPage < totalPages ? <Link href={feedFilterHref(status, query, currentPage + 1)}>下一页 →</Link> : <span>下一页 →</span>}
+          {displayPage > 1 ? <Link href={feedFilterHref(status, query)}>第一页</Link> : <span>第一页</span>}
+          {displayPage > 1 ? <Link href={feedFilterHref(status, query, displayPage - 1)}>← 上一页</Link> : <span>← 上一页</span>}
+          <strong>第 {displayPage} / {totalPages} 页</strong>
+          {displayPage < totalPages ? <Link href={feedFilterHref(status, query, displayPage + 1)}>下一页 →</Link> : <span>下一页 →</span>}
+          {displayPage < totalPages ? <Link href={feedFilterHref(status, query, totalPages)}>末页</Link> : <span>末页</span>}
+          <form action="/admin/feed" className="pagination-jump">
+            {status && <input type="hidden" name="status" value={status} />}
+            {query && <input type="hidden" name="q" value={query} />}
+            <label>跳到 <input name="page" type="number" min="1" max={totalPages} defaultValue={displayPage} /> 页</label>
+            <button type="submit">跳转</button>
+          </form>
         </nav>}
       </section>
       {failedJobs.results.length > 0 && <section className="admin-card">

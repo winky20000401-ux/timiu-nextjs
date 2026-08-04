@@ -459,10 +459,17 @@ test("RSS 审核队列支持分页浏览超过 100 条线索", async () => {
   assert.match(page, /SELECT COUNT\(\*\) AS total FROM feed_items/);
   assert.match(page, /parsePositivePage/);
   assert.match(page, /pagination-nav/);
+  assert.match(page, /displayPage/);
+  assert.match(page, /第一页/);
   assert.match(page, /上一页/);
   assert.match(page, /下一页/);
+  assert.match(page, /末页/);
+  assert.match(page, /pagination-jump/);
+  assert.match(page, /name="page"/);
+  assert.match(page, /max=\{totalPages\}/);
   assert.match(page, /page > 1/);
   assert.match(styles, /\.pagination-nav/);
+  assert.match(styles, /\.pagination-jump/);
 });
 
 test("RSS 收录统计卡片可直接跳转到对应队列", async () => {
