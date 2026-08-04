@@ -123,14 +123,14 @@ export default async function FeedQueuePage({
     <div className="shell admin-page">
       <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">{activeLabel} · 当前显示 {result.results.length} 条 · 总收录 {(feedStats?.total ?? 0).toLocaleString()} 条</span></div>
       <div className="feed-stats-grid" aria-label="RSS 收录统计">
-        <div><span>总收录</span><strong>{(feedStats?.total ?? 0).toLocaleString()}</strong></div>
-        <div><span>待翻译</span><strong>{(feedStats?.translation_required ?? 0).toLocaleString()}</strong></div>
-        <div><span>待审核</span><strong>{(feedStats?.review ?? 0).toLocaleString()}</strong></div>
-        <div><span>低相关</span><strong>{(feedStats?.low_relevance ?? 0).toLocaleString()}</strong></div>
-        <div><span>重复</span><strong>{(feedStats?.duplicate ?? 0).toLocaleString()}</strong></div>
-        <div><span>已成稿</span><strong>{(feedStats?.drafted ?? 0).toLocaleString()}</strong></div>
-        <div><span>翻译失败</span><strong>{(feedStats?.translation_failed ?? 0).toLocaleString()}</strong></div>
-        <div><span>处理中</span><strong>{(feedStats?.translation_running ?? 0).toLocaleString()}</strong></div>
+        <Link className={!status ? "active" : ""} href={feedFilterHref("", query)}><span>总收录</span><strong>{(feedStats?.total ?? 0).toLocaleString()}</strong><small>查看全部 →</small></Link>
+        <Link className={status === "translation_required" ? "active" : ""} href={feedFilterHref("translation_required", query)}><span>待翻译</span><strong>{(feedStats?.translation_required ?? 0).toLocaleString()}</strong><small>进入待翻译 →</small></Link>
+        <Link className={status === "review" ? "active" : ""} href={feedFilterHref("review", query)}><span>待审核</span><strong>{(feedStats?.review ?? 0).toLocaleString()}</strong><small>查看待审核 →</small></Link>
+        <Link className={status === "low_relevance" ? "active" : ""} href={feedFilterHref("low_relevance", query)}><span>低相关</span><strong>{(feedStats?.low_relevance ?? 0).toLocaleString()}</strong><small>查看低相关 →</small></Link>
+        <Link className={status === "duplicate" ? "active" : ""} href={feedFilterHref("duplicate", query)}><span>重复</span><strong>{(feedStats?.duplicate ?? 0).toLocaleString()}</strong><small>查看重复 →</small></Link>
+        <Link className={status === "drafted" ? "active" : ""} href={feedFilterHref("drafted", query)}><span>已成稿</span><strong>{(feedStats?.drafted ?? 0).toLocaleString()}</strong><small>查看已成稿 →</small></Link>
+        <Link className={status === "translation_failed" ? "active" : ""} href={feedFilterHref("translation_failed", query)}><span>翻译失败</span><strong>{(feedStats?.translation_failed ?? 0).toLocaleString()}</strong><small>排查失败 →</small></Link>
+        <Link className={status === "translation_running" ? "active" : ""} href={feedFilterHref("translation_running", query)}><span>处理中</span><strong>{(feedStats?.translation_running ?? 0).toLocaleString()}</strong><small>查看处理中 →</small></Link>
       </div>
       <ol className="feed-usage-guide">
         <li><strong>1. 查看线索</strong><span>阅读标题与摘要，点击原始来源核对全文。</span></li>

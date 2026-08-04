@@ -451,6 +451,19 @@ test("RSS 审核队列支持按状态筛选和关键词搜索", async () => {
   assert.match(styles, /\.feed-filters/);
 });
 
+test("RSS 收录统计卡片可直接跳转到对应队列", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /查看全部 →/);
+  assert.match(page, /进入待翻译 →/);
+  assert.match(page, /查看已成稿 →/);
+  assert.match(page, /排查失败 →/);
+  assert.match(page, /href=\{feedFilterHref\("translation_required", query\)\}/);
+  assert.match(page, /href=\{feedFilterHref\("drafted", query\)\}/);
+  assert.match(styles, /\.feed-stats-grid > a/);
+  assert.match(styles, /\.feed-stats-grid > a\.active/);
+});
+
 test("后台提供自动发布开关但不绕过安全发布条件", async () => {
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/admin/settings/auto-publish/route.ts", import.meta.url), "utf8");
