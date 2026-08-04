@@ -355,14 +355,21 @@ test("RSS 审核队列显示累计收录总数与状态统计", async () => {
 test("RSS 审核队列支持选择批量生成数量但全部保留人工审核", async () => {
   const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
   const component = await readFile(new URL("../components/BatchTranslateAction.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(page, /BatchTranslateAction/);
   assert.match(page, /processing_status === "translation_required"/);
   assert.match(page, /slice\(0, 20\)/);
+  assert.match(page, /data-rss-batch-id/);
+  assert.match(page, /选择 RSS #\$\{item\.id\} 批量生成草稿/);
   assert.match(component, /\[3, 5, 10, 20\]/);
   assert.match(component, /requestedCount/);
+  assert.match(component, /fallbackBatchCount/);
+  assert.match(component, /resolveBatchIds/);
+  assert.match(component, /\[data-rss-batch-id\]:checked/);
   assert.match(component, /Math\.min\(requestedCount, 20\)/);
   assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
   assert.match(component, /不会自动发布/);
+  assert.match(styles, /\.rss-select-cell/);
   assert.doesNotMatch(component, /status = 'published'|\/status/);
 });
 

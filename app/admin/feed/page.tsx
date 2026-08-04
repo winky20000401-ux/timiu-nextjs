@@ -177,8 +177,17 @@ export default async function FeedQueuePage({
       <section className="admin-card">
         {result.results.length === 0 ? <p className="muted">当前筛选没有匹配的 RSS 线索。可以切换到“全部”或返回工作台读取最新 RSS。</p> :
           <table className="admin-table queue-table">
-            <thead><tr><th>新闻线索</th><th>最近读取</th><th>状态</th><th>来源</th><th>操作</th></tr></thead>
+            <thead><tr><th>选择</th><th>新闻线索</th><th>最近读取</th><th>状态</th><th>来源</th><th>操作</th></tr></thead>
             <tbody>{result.results.map((item) => <tr key={item.id}>
+              <td className="rss-select-cell">
+                <input
+                  data-rss-batch-id
+                  type="checkbox"
+                  value={item.id}
+                  disabled={item.processing_status !== "translation_required"}
+                  aria-label={`选择 RSS #${item.id} 批量生成草稿`}
+                />
+              </td>
               <td><strong>{item.title}</strong>{item.summary && <small>{item.summary.slice(0, 150)}</small>}</td>
               <td className="rss-time">
                 <strong>{formatQueueTime(item.last_seen_at ?? item.created_at)}</strong>

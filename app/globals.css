@@ -343,6 +343,8 @@ img { max-width: 100%; }
 .queue-table td > strong, .queue-table td > small { display: block; }
 .queue-table td > small { margin-top: 6px; color: #78838f; line-height: 1.55; }
 .queue-table a { color: #4a6800; text-decoration: underline; }
+.rss-select-cell { width: 52px; }
+.rss-select-cell input:disabled { opacity: .28; }
 .rss-time { min-width: 118px; color: #2f3b47; }
 .rss-time strong { white-space: nowrap; font-size: 12px; }
 .rss-time small { color: #85909b; font-size: 10px; }
