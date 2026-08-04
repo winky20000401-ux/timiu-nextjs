@@ -438,6 +438,19 @@ test("RSS 审核队列显示每条线索的读取入库时间", async () => {
   assert.match(styles, /\.rss-time/);
 });
 
+test("RSS 审核队列支持按状态筛选和关键词搜索", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /searchParams: Promise<\{ status\?: string; q\?: string \}>/);
+  assert.match(page, /FEED_FILTERS/);
+  assert.match(page, /processing_status = \?/);
+  assert.match(page, /title LIKE \? OR summary LIKE \? OR url LIKE \?/);
+  assert.match(page, /feedFilterHref/);
+  assert.match(page, /搜索 RSS 标题、摘要或来源链接/);
+  assert.match(page, /当前筛选没有匹配的 RSS 线索/);
+  assert.match(styles, /\.feed-filters/);
+});
+
 test("后台提供自动发布开关但不绕过安全发布条件", async () => {
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/admin/settings/auto-publish/route.ts", import.meta.url), "utf8");

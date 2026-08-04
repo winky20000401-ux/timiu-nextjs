@@ -44,14 +44,47 @@ type FeedStats = {
   translation_running: number;
 };
 
-export default async function FeedQueuePage() {
-  await requireAdminUser("/admin/feed");
+const FEED_FILTERS = [
+  { status: "", label: "全部" },
+  { status: "translation_required", label: "待翻译" },
+  { status: "drafted", label: "已成稿" },
+  { status: "translation_failed", label: "翻译失败" },
+  { status: "translation_running", label: "处理中" },
+  { status: "low_relevance", label: "低相关" },
+  { status: "duplicate", label: "重复" },
+  { status: "review", label: "待审核" },
+];
+
+export default async function FeedQueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; q?: string }>;
+}) {
+  const filters = await searchParams;
+  const allowedStatuses = new Set(FEED_FILTERS.map((item) => item.status).filter(Boolean));
+  const status = allowedStatuses.has(filters.status ?? "") ? filters.status! : "";
+  const query = String(filters.q ?? "").trim().slice(0, 80);
+  const returnTo = feedFilterHref(status, query);
+  await requireAdminUser(returnTo);
   const { env } = await import("cloudflare:workers");
+  const conditions: string[] = [];
+  const bindings: string[] = [];
+  if (status) {
+    conditions.push("processing_status = ?");
+    bindings.push(status);
+  }
+  if (query) {
+    conditions.push("(title LIKE ? OR summary LIKE ? OR url LIKE ?)");
+    const like = `%${query}%`;
+    bindings.push(like, like, like);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const queueStatement = env.DB.prepare(
+    `SELECT id, title, url, summary, published_at, created_at, last_seen_at, processing_status
+     FROM feed_items ${where} ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT 100`
+  );
   const [result, failedJobs, usage, feedStats] = await Promise.all([
-    env.DB.prepare(
-      `SELECT id, title, url, summary, published_at, created_at, last_seen_at, processing_status
-       FROM feed_items ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT 100`
-    ).all<QueueItem>(),
+    bindings.length ? queueStatement.bind(...bindings).all<QueueItem>() : queueStatement.all<QueueItem>(),
     env.DB.prepare(
       `SELECT id, model, error_message, finished_at
        FROM automation_jobs
@@ -84,10 +117,11 @@ export default async function FeedQueuePage() {
     .filter((item) => item.processing_status === "translation_required")
     .slice(0, 20)
     .map((item) => item.id);
+  const activeLabel = `${status ? statusLabel(status) : "全部线索"}${query ? ` · 搜索“${query}”` : ""}`;
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>RSS 审核队列</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
     <div className="shell admin-page">
-      <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">当前显示 {result.results.length} 条 · 总收录 {(feedStats?.total ?? 0).toLocaleString()} 条</span></div>
+      <div className="admin-heading"><div><h1>RSS 审核队列</h1><p>查看 RSS 原始标题、摘要与来源，再生成待人工编辑的草稿；这里不会自动公开发布。</p></div><span className="status-pill">{activeLabel} · 当前显示 {result.results.length} 条 · 总收录 {(feedStats?.total ?? 0).toLocaleString()} 条</span></div>
       <div className="feed-stats-grid" aria-label="RSS 收录统计">
         <div><span>总收录</span><strong>{(feedStats?.total ?? 0).toLocaleString()}</strong></div>
         <div><span>待翻译</span><strong>{(feedStats?.translation_required ?? 0).toLocaleString()}</strong></div>
@@ -116,8 +150,21 @@ export default async function FeedQueuePage() {
         <h2>批量生成草稿</h2>
         <BatchTranslateAction ids={batchTranslationIds} />
       </section>
+      <nav className="article-filters feed-filters" aria-label="RSS 状态筛选">
+        {FEED_FILTERS.map((filter) => <Link
+          key={filter.status || "all"}
+          className={status === filter.status ? "active" : ""}
+          href={feedFilterHref(filter.status, query)}
+        >{filter.label}</Link>)}
+      </nav>
+      <form className="admin-search-form" action="/admin/feed">
+        {status && <input type="hidden" name="status" value={status} />}
+        <input name="q" defaultValue={query} placeholder="搜索 RSS 标题、摘要或来源链接" />
+        <button type="submit">搜索 RSS</button>
+        {query && <Link href={feedFilterHref(status, "")}>清除</Link>}
+      </form>
       <section className="admin-card">
-        {result.results.length === 0 ? <p className="muted">队列为空，请先返回工作台读取最新 RSS。</p> :
+        {result.results.length === 0 ? <p className="muted">当前筛选没有匹配的 RSS 线索。可以切换到“全部”或返回工作台读取最新 RSS。</p> :
           <table className="admin-table queue-table">
             <thead><tr><th>新闻线索</th><th>最近读取</th><th>状态</th><th>来源</th><th>操作</th></tr></thead>
             <tbody>{result.results.map((item) => <tr key={item.id}>
@@ -177,4 +224,11 @@ function statusLabel(status: string) {
     duplicate: "重复",
     drafted: "已生成草稿",
   } as Record<string, string>)[status] ?? status;
+}
+
+function feedFilterHref(status: string, query: string) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (query) params.set("q", query);
+  return `/admin/feed${params.toString() ? `?${params.toString()}` : ""}`;
 }
