@@ -458,7 +458,7 @@ test("RSS 审核队列显示每条线索的读取入库时间", async () => {
   assert.match(page, /created_at/);
   assert.match(page, /last_seen_at/);
   assert.match(page, /最近读取/);
-  assert.match(page, /ORDER BY COALESCE\(last_seen_at, created_at\) DESC/);
+  assert.match(page, /ORDER BY COALESCE\(f\.last_seen_at, f\.created_at\) DESC/);
   assert.match(page, /formatQueueTime\(item\.last_seen_at \?\? item\.created_at\)/);
   assert.match(page, /原文 \{item\.published_at \? formatDate\(item\.published_at\) : "未记录"\}/);
   assert.match(page, /首次入库 \{formatQueueTime\(item\.created_at\)\}/);
@@ -470,8 +470,8 @@ test("RSS 审核队列支持按状态筛选和关键词搜索", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(page, /searchParams: Promise<\{ status\?: string; q\?: string; page\?: string \}>/);
   assert.match(page, /FEED_FILTERS/);
-  assert.match(page, /processing_status = \?/);
-  assert.match(page, /title LIKE \? OR summary LIKE \? OR url LIKE \?/);
+  assert.match(page, /f\.processing_status = \?/);
+  assert.match(page, /f\.title LIKE \? OR f\.summary LIKE \? OR f\.url LIKE \?/);
   assert.match(page, /feedFilterHref/);
   assert.match(page, /搜索 RSS 标题、摘要或来源链接/);
   assert.match(page, /当前筛选没有匹配的 RSS 线索/);
@@ -510,6 +510,20 @@ test("RSS 收录统计卡片可直接跳转到对应队列", async () => {
   assert.match(page, /href=\{feedFilterHref\("drafted", query\)\}/);
   assert.match(styles, /\.feed-stats-grid > a/);
   assert.match(styles, /\.feed-stats-grid > a\.active/);
+});
+
+test("RSS 已成稿线索可直接打开对应后台草稿", async () => {
+  const page = await readFile(new URL("../app/admin/feed/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /WITH generated_articles AS/);
+  assert.match(page, /JOIN article_sources article_source/);
+  assert.match(page, /LEFT JOIN generated_articles ON generated_articles\.url = f\.url/);
+  assert.match(page, /generated_article_id/);
+  assert.match(page, /href=\{`\/admin\/articles\/\$\{item\.generated_article_id\}`\}/);
+  assert.match(page, /打开草稿 ↗/);
+  assert.match(page, /target="_blank"/);
+  assert.match(styles, /\.feed-row-actions/);
+  assert.match(styles, /\.feed-row-actions \.draft-link/);
 });
 
 test("低相关 RSS 线索可人工转回待翻译队列", async () => {

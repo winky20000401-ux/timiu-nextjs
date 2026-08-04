@@ -16,6 +16,9 @@ type QueueItem = {
   created_at: string;
   last_seen_at: string | null;
   processing_status: string;
+  generated_article_id: number | null;
+  generated_article_title: string | null;
+  generated_article_status: string | null;
 };
 
 type FailedTranslationJob = {
@@ -73,20 +76,36 @@ export default async function FeedQueuePage({
   const conditions: string[] = [];
   const bindings: string[] = [];
   if (status) {
-    conditions.push("processing_status = ?");
+    conditions.push("f.processing_status = ?");
     bindings.push(status);
   }
   if (query) {
-    conditions.push("(title LIKE ? OR summary LIKE ? OR url LIKE ?)");
+    conditions.push("(f.title LIKE ? OR f.summary LIKE ? OR f.url LIKE ?)");
     const like = `%${query}%`;
     bindings.push(like, like, like);
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const queueStatement = env.DB.prepare(
-    `SELECT id, title, url, summary, published_at, created_at, last_seen_at, processing_status
-     FROM feed_items ${where} ORDER BY COALESCE(last_seen_at, created_at) DESC LIMIT ? OFFSET ?`
+    `WITH generated_articles AS (
+       SELECT s.url,
+              MAX(a.id) AS generated_article_id,
+              MAX(a.title) AS generated_article_title,
+              MAX(a.status) AS generated_article_status
+       FROM sources s
+       JOIN article_sources article_source ON article_source.source_id = s.id
+       JOIN articles a ON a.id = article_source.article_id
+       WHERE a.status != 'archived'
+       GROUP BY s.url
+     )
+     SELECT f.id, f.title, f.url, f.summary, f.published_at, f.created_at, f.last_seen_at, f.processing_status,
+            generated_articles.generated_article_id,
+            generated_articles.generated_article_title,
+            generated_articles.generated_article_status
+     FROM feed_items f
+     LEFT JOIN generated_articles ON generated_articles.url = f.url
+     ${where} ORDER BY COALESCE(f.last_seen_at, f.created_at) DESC LIMIT ? OFFSET ?`
   );
-  const countStatement = env.DB.prepare(`SELECT COUNT(*) AS total FROM feed_items ${where}`);
+  const countStatement = env.DB.prepare(`SELECT COUNT(*) AS total FROM feed_items f ${where}`);
   const queueBindings = [...bindings, pageSize, offset];
   const [result, filteredCount, failedJobs, usage, feedStats] = await Promise.all([
     queueStatement.bind(...queueBindings).all<QueueItem>(),
@@ -196,12 +215,23 @@ export default async function FeedQueuePage({
               </td>
               <td><span className="badge">{statusLabel(item.processing_status)}</span></td>
               <td><a href={item.url} target="_blank" rel="noreferrer">查看原始来源 ↗</a></td>
-              <td><FeedQueueAction
-                id={item.id}
-                disabled={!["review", "translation_required", "translation_failed"].includes(item.processing_status)}
-                needsTranslation={["translation_required", "translation_failed"].includes(item.processing_status)}
-                status={item.processing_status}
-              /></td>
+              <td>
+                <div className="feed-row-actions">
+                  {item.generated_article_id && <Link
+                    className="draft-link"
+                    href={`/admin/articles/${item.generated_article_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={item.generated_article_title ?? "打开已生成草稿"}
+                  >打开草稿 ↗</Link>}
+                  <FeedQueueAction
+                    id={item.id}
+                    disabled={!["review", "translation_required", "translation_failed"].includes(item.processing_status)}
+                    needsTranslation={["translation_required", "translation_failed"].includes(item.processing_status)}
+                    status={item.processing_status}
+                  />
+                </div>
+              </td>
             </tr>)}</tbody>
           </table>}
         {totalPages > 1 && <nav className="pagination-nav" aria-label="RSS 队列分页">

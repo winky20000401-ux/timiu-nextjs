@@ -357,6 +357,8 @@ img { max-width: 100%; }
 .queue-table td > strong, .queue-table td > small { display: block; }
 .queue-table td > small { margin-top: 6px; color: #78838f; line-height: 1.55; }
 .queue-table a { color: #4a6800; text-decoration: underline; }
+.feed-row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.feed-row-actions .draft-link { padding: 9px 10px; border: 1px solid #9ed62f; background: #f2ffe3; color: #405800; font-size: 11px; font-weight: 900; text-decoration: none; }
 .rss-select-cell { width: 52px; }
 .rss-select-cell input:disabled { opacity: .28; }
 .rss-time { min-width: 118px; color: #2f3b47; }
