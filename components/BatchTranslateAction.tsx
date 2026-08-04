@@ -19,6 +19,7 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
   const successCount = results.filter((result) => result.articleId).length;
   const failedCount = results.filter((result) => result.error).length;
   const finished = !loading && results.length > 0;
+  const activeBatchCount = Math.min(selectedCount > 0 ? selectedCount : fallbackBatchCount, 20);
 
   useEffect(() => {
     function refreshSelectedCount() {
@@ -99,5 +100,10 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
           : <span>{result.error}</span>}
       </li>)}
     </ol>}
+    {(selectedCount > 0 || loading) && <div className="batch-sticky-bar" role="region" aria-label="已选择 RSS 批量操作">
+      <span>{loading ? `正在处理 ${results.length} / ${activeBatchCount} 条` : `已选择 ${selectedCount} 条 RSS，最多处理 ${activeBatchCount} 条`}</span>
+      <button type="button" onClick={runBatch} disabled={loading}>生成选中 Gemini 草稿</button>
+      <button type="button" onClick={() => setVisibleSelection(false)} disabled={loading}>清空选择</button>
+    </div>}
   </div>;
 }

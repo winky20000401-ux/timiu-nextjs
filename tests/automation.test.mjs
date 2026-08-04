@@ -368,6 +368,7 @@ test("RSS 审核队列支持选择批量生成数量但全部保留人工审核"
   assert.match(component, /successCount/);
   assert.match(component, /failedCount/);
   assert.match(component, /finished/);
+  assert.match(component, /activeBatchCount/);
   assert.match(component, /setVisibleSelection/);
   assert.match(component, /全选本页待翻译/);
   assert.match(component, /清空选择/);
@@ -375,6 +376,10 @@ test("RSS 审核队列支持选择批量生成数量但全部保留人工审核"
   assert.match(component, /批量生成完成：成功/);
   assert.match(component, /\/admin\/articles\?review=required/);
   assert.match(component, /target="_blank"/);
+  assert.match(component, /batch-sticky-bar/);
+  assert.match(component, /已选择 \$\{selectedCount\} 条 RSS，最多处理 \$\{activeBatchCount\} 条/);
+  assert.match(component, /生成选中 Gemini 草稿/);
+  assert.match(component, /正在处理 \$\{results\.length\} \/ \$\{activeBatchCount\} 条/);
   assert.match(component, /resolveBatchIds/);
   assert.match(component, /\[data-rss-batch-id\]:checked/);
   assert.match(component, /\[data-rss-batch-id\]:not\(:disabled\)/);
@@ -384,6 +389,7 @@ test("RSS 审核队列支持选择批量生成数量但全部保留人工审核"
   assert.match(styles, /\.rss-select-cell/);
   assert.match(styles, /\.batch-selection-tools/);
   assert.match(styles, /\.batch-summary/);
+  assert.match(styles, /\.batch-sticky-bar/);
   assert.doesNotMatch(component, /status = 'published'|\/status/);
 });
 

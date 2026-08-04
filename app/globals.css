@@ -337,6 +337,11 @@ img { max-width: 100%; }
 .batch-selection-tools button:first-child { border-color: #9ed62f; background: #f2ffe3; color: #405800; }
 .batch-selection-tools button:disabled { cursor: not-allowed; opacity: .5; }
 .batch-selection-tools span { background: #f7faf6; color: #526d13; }
+.batch-sticky-bar { position: fixed; left: 50%; bottom: 18px; z-index: 40; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; max-width: min(760px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid #b8c6bb; background: rgba(255, 255, 255, .94); box-shadow: 0 18px 45px rgb(9 18 28 / .18); transform: translateX(-50%); backdrop-filter: blur(12px); }
+.batch-sticky-bar span { color: #17202b; font-size: 12px; font-weight: 900; }
+.batch-sticky-bar button { padding: 10px 12px; border: 1px solid #c4cfc8; background: white; color: #26313c; cursor: pointer; font-size: 12px; font-weight: 900; }
+.batch-sticky-bar button:first-of-type { border-color: var(--lime); background: var(--lime); color: #071109; }
+.batch-sticky-bar button:disabled { cursor: wait; opacity: .6; }
 .feed-stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: -12px 0 22px; }
 .feed-stats-grid > a { display: block; padding: 15px; border: 1px solid #d7ddd9; background: white; transition: transform .18s, border-color .18s, box-shadow .18s; }
 .feed-stats-grid > a:hover, .feed-stats-grid > a:focus-visible { border-color: var(--lime); box-shadow: 0 12px 28px rgb(18 33 47 / .08); transform: translateY(-2px); outline: 0; }
