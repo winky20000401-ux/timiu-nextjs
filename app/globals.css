@@ -328,6 +328,9 @@ img { max-width: 100%; }
 .batch-action p { margin: 0; }
 .batch-action ol { margin: 4px 0 0; padding-left: 20px; color: #5d6875; font-size: 12px; }
 .batch-action a { color: #486800; text-decoration: underline; }
+.batch-summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px; border: 1px solid #cfd8ca; border-left: 3px solid var(--lime); background: #f8fff0; color: #405800; font-size: 12px; }
+.batch-summary strong { font-size: 12px; }
+.batch-summary a { color: #486800; font-weight: 800; text-decoration: underline; }
 .batch-selection-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .batch-selection-tools button, .batch-selection-tools span { padding: 8px 10px; border: 1px solid #cfd8ca; background: white; color: #4b5663; font-size: 11px; font-weight: 800; }
 .batch-selection-tools button { cursor: pointer; }

@@ -16,6 +16,9 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
   const [results, setResults] = useState<BatchResult[]>([]);
   const [selectedCount, setSelectedCount] = useState(0);
   const fallbackBatchCount = Math.min(ids.length, requestedCount, 20);
+  const successCount = results.filter((result) => result.articleId).length;
+  const failedCount = results.filter((result) => result.error).length;
+  const finished = !loading && results.length > 0;
 
   useEffect(() => {
     function refreshSelectedCount() {
@@ -84,11 +87,15 @@ export function BatchTranslateAction({ ids }: { ids: number[] }) {
       <span>已选 {selectedCount} 条</span>
     </div>
     <p className="muted">可以先在下方勾选指定 RSS；未勾选时会按当前顺序处理 {fallbackBatchCount} 篇。系统只处理“需人工翻译”的 RSS，最多 20 篇，生成后全部进入人工审核，不会自动发布。</p>
+    {finished && <div className="batch-summary" role="status">
+      <strong>批量生成完成：成功 {successCount} 篇，失败 {failedCount} 篇</strong>
+      {successCount > 0 && <a href="/admin/articles?review=required">进入待审核文章队列 →</a>}
+    </div>}
     {results.length > 0 && <ol>
       {results.map((result) => <li key={result.id}>
         #{result.id}：
         {result.articleId
-          ? <a href={`/admin/articles/${result.articleId}`}>{result.title ?? `草稿 ${result.articleId}`} →</a>
+          ? <a href={`/admin/articles/${result.articleId}`} target="_blank" rel="noreferrer">{result.title ?? `草稿 ${result.articleId}`} →</a>
           : <span>{result.error}</span>}
       </li>)}
     </ol>}
