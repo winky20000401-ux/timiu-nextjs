@@ -223,7 +223,7 @@ export default async function FeedQueuePage({
                     target="_blank"
                     rel="noreferrer"
                     title={item.generated_article_title ?? "打开已生成草稿"}
-                  >打开草稿 ↗</Link>}
+                  >打开{articleStatusLabel(item.generated_article_status)} ↗</Link>}
                   <FeedQueueAction
                     id={item.id}
                     disabled={!["review", "translation_required", "translation_failed"].includes(item.processing_status)}
@@ -288,6 +288,16 @@ function statusLabel(status: string) {
     duplicate: "重复",
     drafted: "已生成草稿",
   } as Record<string, string>)[status] ?? status;
+}
+
+function articleStatusLabel(status: string | null) {
+  return ({
+    draft: "草稿",
+    review: "待审核文章",
+    scheduled: "定时文章",
+    published: "已发布文章",
+    failed: "失败文章",
+  } as Record<string, string>)[status ?? ""] ?? "文章";
 }
 
 function feedFilterHref(status: string, query: string, page = 1) {

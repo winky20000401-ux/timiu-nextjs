@@ -520,7 +520,10 @@ test("RSS 已成稿线索可直接打开对应后台草稿", async () => {
   assert.match(page, /LEFT JOIN generated_articles ON generated_articles\.url = f\.url/);
   assert.match(page, /generated_article_id/);
   assert.match(page, /href=\{`\/admin\/articles\/\$\{item\.generated_article_id\}`\}/);
-  assert.match(page, /打开草稿 ↗/);
+  assert.match(page, /articleStatusLabel\(item\.generated_article_status\)/);
+  assert.match(page, /review: "待审核文章"/);
+  assert.match(page, /published: "已发布文章"/);
+  assert.match(page, /draft: "草稿"/);
   assert.match(page, /target="_blank"/);
   assert.match(styles, /\.feed-row-actions/);
   assert.match(styles, /\.feed-row-actions \.draft-link/);
