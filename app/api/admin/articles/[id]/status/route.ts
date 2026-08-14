@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
+import { absoluteSiteUrl } from "@/lib/site";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const origin = request.headers.get("origin");
@@ -13,8 +14,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const { env } = await import("cloudflare:workers");
   const article = await env.DB.prepare(
-    "SELECT id, title, status, description, content_html, category_id FROM articles WHERE id = ?"
-  ).bind(id).first<{ id: number; title: string; status: string; description: string; content_html: string; category_id: number | null }>();
+    "SELECT id, title, slug, status, description, content_html, category_id FROM articles WHERE id = ?"
+  ).bind(id).first<{ id: number; title: string; slug: string; status: string; description: string; content_html: string; category_id: number | null }>();
   if (!article) return Response.json({ error: "文章不存在" }, { status: 404 });
   let target = "archived";
   if (action === "publish") {
@@ -24,8 +25,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     target = "published";
     await env.DB.prepare(
-      "UPDATE articles SET status = ?, requires_review = ?, review_reason = '', published_at = COALESCE(published_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?"
-    ).bind(target, false, id).run();
+      "UPDATE articles SET status = ?, requires_review = ?, review_reason = '', canonical_url = COALESCE(NULLIF(canonical_url, ''), ?), published_at = COALESCE(published_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(target, false, absoluteSiteUrl(`/article/${article.slug}`), id).run();
   } else if (action === "unpublish") {
     target = "review";
     await env.DB.prepare(

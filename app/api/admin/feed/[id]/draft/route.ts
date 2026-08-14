@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
+import { absoluteSiteUrl } from "@/lib/site";
 
 type FeedRow = {
   id: number;
@@ -33,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!category) return Response.json({ error: "栏目初始化失败" }, { status: 500 });
 
   const slug = `rss-${item.id}-${item.fingerprint.slice(0, 10)}`;
+  const canonicalUrl = absoluteSiteUrl(`/article/${slug}`);
   const description = item.summary.slice(0, 180) || `${item.title}的新闻线索，等待编辑补充核验。`;
   const needsTranslation = item.processing_status === "translation_required";
   const contentHtml = [
@@ -49,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     item.title, slug, item.title, description, contentHtml, category.id,
     "review", 0.4, true,
     needsTranslation ? "RSS 外文短讯草稿需要人工翻译、核验事实与调整中文表达" : "RSS 短讯草稿需要人工核验事实、来源与中文表达",
-    "",
+    canonicalUrl,
   ).run();
   const articleId = Number(article.meta.last_row_id);
   if (!articleId) return Response.json({ error: "该 RSS 条目已创建过草稿" }, { status: 409 });

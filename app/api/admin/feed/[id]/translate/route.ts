@@ -13,6 +13,7 @@ import {
   parseGeminiUsage,
   parseTranslationDraft,
 } from "@/lib/gemini-translation";
+import { absoluteSiteUrl } from "@/lib/site";
 
 type FeedRow = {
   id: number;
@@ -83,6 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const slug = `rss-${item.id}-${item.fingerprint.slice(0, 10)}`;
+  const canonicalUrl = absoluteSiteUrl(`/article/${slug}`);
   const existing = await env.DB.prepare("SELECT id FROM articles WHERE slug = ?").bind(slug).first<{ id: number }>();
   if (existing) {
     await env.DB.prepare(
@@ -164,7 +166,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
        (title, subtitle, slug, seo_title, description, content_html, category_id, status,
         confidence, requires_review, review_reason, canonical_url,
         cover_object_key, cover_source, cover_copyright)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'review', ?, true, ?, '', ?, ?, ?)`
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'review', ?, true, ?, ?, ?, ?, ?)`
     ).bind(
       draft.title,
       draft.subtitle,
@@ -175,6 +177,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       category.id,
       draft.confidence,
       reviewReason,
+      canonicalUrl,
       cover?.key ?? "",
       cover?.source ?? "",
       cover?.copyright ?? "",

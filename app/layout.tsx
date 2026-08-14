@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://timiu.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "TIMIU 游戏资讯｜游戏新闻、硬件与攻略",
     template: "%s｜TIMIU 游戏资讯",

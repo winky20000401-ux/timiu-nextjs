@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PageFrame } from "@/components/SiteChrome";
 import { articles, categoryMeta, formatDate, getArticle } from "@/lib/content";
 import { mediaUrl } from "@/lib/media";
+import { SITE_URL, absoluteSiteUrl } from "@/lib/site";
 
 type PublishedArticle = {
   id: number;
@@ -52,7 +53,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const published = await getPublishedArticle(slug);
   if (!published) return {};
   const tags = await getArticleTags(published.id);
-  const canonical = published.canonical_url || `/article/${published.slug}`;
+  const canonical = published.canonical_url || absoluteSiteUrl(`/article/${published.slug}`);
   return {
     title: published.seo_title || published.title,
     description: published.description,
@@ -90,9 +91,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     datePublished: article.publishedAt,
     dateModified: article.updatedAt,
     inLanguage: "zh-CN",
-    mainEntityOfPage: `https://timiu.com/article/${article.slug}`,
+    mainEntityOfPage: absoluteSiteUrl(`/article/${article.slug}`),
     author: { "@type": "Organization", name: "TIMIU 编辑部" },
-    publisher: { "@type": "Organization", name: "TIMIU 游戏资讯", url: "https://timiu.com" },
+    publisher: { "@type": "Organization", name: "TIMIU 游戏资讯", url: SITE_URL },
   };
   return (
     <PageFrame>
@@ -168,9 +169,9 @@ async function PublishedArticlePage({ article }: { article: PublishedArticle }) 
     datePublished: article.published_at,
     dateModified: article.updated_at,
     inLanguage: "zh-CN",
-    mainEntityOfPage: article.canonical_url || `https://timiu.com/article/${article.slug}`,
+    mainEntityOfPage: article.canonical_url || absoluteSiteUrl(`/article/${article.slug}`),
     author: { "@type": "Organization", name: "TIMIU 编辑部" },
-    publisher: { "@type": "Organization", name: "TIMIU 游戏资讯", url: "https://timiu.com" },
+    publisher: { "@type": "Organization", name: "TIMIU 游戏资讯", url: SITE_URL },
     citation: sources.map((source) => source.url),
     image: article.cover_object_key ? mediaUrl(article.cover_object_key) : undefined,
   };

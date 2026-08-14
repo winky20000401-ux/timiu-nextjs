@@ -1,5 +1,6 @@
 import { getAdminUser } from "@/app/admin-auth";
 import { safeCoverKey } from "@/lib/media";
+import { absoluteSiteUrl } from "@/lib/site";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -32,15 +33,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
   const contentHtml = contentText.split(/\n{2,}/).map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br>")}</p>`).join("");
   const { env } = await import("cloudflare:workers");
+  const canonicalUrl = absoluteSiteUrl(`/article/${slug}`);
   const result = await env.DB.prepare(
     `UPDATE articles SET title = ?, subtitle = ?, slug = ?, seo_title = ?, description = ?,
      content_html = ?, category_id = ?, cover_object_key = ?, cover_source = ?, cover_copyright = ?,
-     updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived'`
+     canonical_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived'`
   ).bind(
     title, String(body.subtitle ?? "").trim().slice(0, 240), slug,
     String(body.seoTitle ?? title).trim().slice(0, 220), description,
     contentHtml, categoryId, coverObjectKey || null,
-    coverObjectKey ? coverSource : null, coverObjectKey ? coverCopyright : null, id,
+    coverObjectKey ? coverSource : null, coverObjectKey ? coverCopyright : null,
+    canonicalUrl, id,
   ).run();
   if (!result.meta.changes) return Response.json({ error: "文章不存在或已归档" }, { status: 404 });
   await env.DB.prepare("DELETE FROM article_tags WHERE article_id = ?").bind(id).run();

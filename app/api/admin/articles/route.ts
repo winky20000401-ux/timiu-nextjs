@@ -1,6 +1,7 @@
 import { getAdminUser } from "@/app/admin-auth";
 import { ensureDefaultCategories } from "@/lib/categories";
 import { safeCoverKey } from "@/lib/media";
+import { absoluteSiteUrl } from "@/lib/site";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   const { env } = await import("cloudflare:workers");
   await ensureDefaultCategories(env.DB);
   const slug = await findAvailableSlug(env.DB, requestedSlug);
+  const canonicalUrl = absoluteSiteUrl(`/article/${slug}`);
   await env.DB.prepare(
     "INSERT OR IGNORE INTO users (email, display_name, role) VALUES (?, ?, ?)"
   ).bind(user.email, user.displayName, "admin").run();
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
        (title, subtitle, slug, seo_title, description, content_html, category_id, author_id,
         status, confidence, requires_review, review_reason, canonical_url,
         cover_object_key, cover_source, cover_copyright)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 1, true, ?, '', ?, ?, ?)`
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', 1, true, ?, ?, ?, ?, ?)`
     ).bind(
       title,
       String(body.subtitle ?? "").trim().slice(0, 240),
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
       categoryId,
       dbUser?.id ?? null,
       "手动新建文章需要人工审核",
+      canonicalUrl,
       coverObjectKey || null,
       coverObjectKey ? coverSource : null,
       coverObjectKey ? coverCopyright : null,

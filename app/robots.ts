@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL, absoluteSiteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       { userAgent: "*", allow: "/", disallow: ["/admin", "/api/admin", "/api/automation"] },
     ],
-    sitemap: "https://timiu.com/sitemap.xml",
-    host: "https://timiu.com",
+    sitemap: absoluteSiteUrl("/sitemap.xml"),
+    host: SITE_URL,
   };
 }
