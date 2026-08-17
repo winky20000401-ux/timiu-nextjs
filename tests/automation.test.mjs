@@ -684,7 +684,7 @@ test("审核列表快速发布成功后也自动回到工作台", async () => {
 test("文章管理中已发布文章标题使用公开文章链接以支持新分页打开", async () => {
   const page = await readFile(new URL("../app/admin/articles/page.tsx", import.meta.url), "utf8");
   const manager = await readFile(new URL("../components/ArticleBulkManager.tsx", import.meta.url), "utf8");
-  assert.match(page, /SELECT id, title, slug, status/);
+  assert.match(page, /SELECT a\.id, a\.title, a\.slug, a\.status/);
   assert.match(manager, /article\.status === "published"/);
   assert.match(manager, /href=\{`\/article\/\$\{article\.slug\}`\}/);
   assert.match(manager, /href=\{`\/admin\/articles\/\$\{article\.id\}`\}/);
@@ -706,6 +706,31 @@ test("文章管理支持搜索和批量安全操作", async () => {
   assert.match(route, /缺少标题、描述、正文、栏目或来源/);
   assert.match(route, /publication_logs/);
   assert.doesNotMatch(route, /DELETE FROM articles/);
+});
+
+test("工作台文章队列支持原地筛选并跳转完整列表", async () => {
+  const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /searchParams: Promise<\{ queue\?: string \}>/);
+  assert.match(page, /dashboardQueueView/);
+  assert.match(page, /dashboardQueueWhere/);
+  assert.match(page, /queue=review#recent-activity/);
+  assert.match(page, /dashboardQueueTarget/);
+  assert.match(styles, /\.dashboard-queue-tabs/);
+});
+
+test("文章管理显示状态统计、栏目和置信度以提升审稿扫描效率", async () => {
+  const page = await readFile(new URL("../app/admin/articles/page.tsx", import.meta.url), "utf8");
+  const manager = await readFile(new URL("../components/ArticleBulkManager.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(page, /ArticleStats/);
+  assert.match(page, /article-stats-strip/);
+  assert.match(page, /LEFT JOIN categories/);
+  assert.match(page, /a\.confidence/);
+  assert.match(manager, /article\.category \?\? "未分类"/);
+  assert.match(manager, /confidenceTone\(article\.confidence\)/);
+  assert.match(manager, /returnTo="current"/);
+  assert.match(styles, /\.article-stats-strip/);
 });
 
 test("工作台失败任务可以清理但不会删除日志", async () => {

@@ -40,10 +40,17 @@ type FailedJobRow = {
   finished_at: string | null;
 };
 
-export default async function AdminPage() {
-  const user = await requireAdminUser("/admin");
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ queue?: string }>;
+}) {
+  const params = await searchParams;
+  const queueView = dashboardQueueView(params.queue);
+  const user = await requireAdminUser(queueView === "all" ? "/admin" : `/admin?queue=${queueView}`);
   const geminiTranslationReady = process.env.RSS_TRANSLATION_ENABLED === "true" && Boolean(process.env.GEMINI_API_KEY);
   const { env } = await import("cloudflare:workers");
+  const queueWhere = dashboardQueueWhere(queueView);
   const [stats, queue, autoPublishSetting, autoPublishLimitSetting, failedJobs] = await Promise.all([
     env.DB.prepare(
       `SELECT
@@ -58,7 +65,7 @@ export default async function AdminPage() {
         a.requires_review, a.updated_at
        FROM articles a
        LEFT JOIN categories c ON c.id = a.category_id
-       WHERE a.status != 'archived'
+       WHERE ${queueWhere}
        ORDER BY a.updated_at DESC
        LIMIT 10`
     ).all<QueueRow>(),
@@ -89,7 +96,20 @@ export default async function AdminPage() {
         </div>
         <div className="admin-grid">
           <section className="admin-card" id="recent-activity">
-            <h2>文章队列</h2>
+            <div className="card-title-row">
+              <div>
+                <h2>文章队列</h2>
+                <p className="muted">当前：{dashboardQueueLabel(queueView)} · 最新 {queue.results.length} 篇</p>
+              </div>
+              <Link className="mini-link" href={dashboardQueueTarget(queueView)}>打开完整列表 →</Link>
+            </div>
+            <nav className="dashboard-queue-tabs" aria-label="工作台文章队列筛选">
+              <Link className={queueView === "all" ? "active" : ""} href="/admin#recent-activity">全部</Link>
+              <Link className={queueView === "review" ? "active" : ""} href="/admin?queue=review#recent-activity">需审核</Link>
+              <Link className={queueView === "draft" ? "active" : ""} href="/admin?queue=draft#recent-activity">草稿</Link>
+              <Link className={queueView === "published" ? "active" : ""} href="/admin?queue=published#recent-activity">已发布</Link>
+              <Link className={queueView === "failed" ? "active" : ""} href="/admin?queue=failed#recent-activity">失败</Link>
+            </nav>
             <table className="admin-table">
               <thead><tr><th>标题</th><th>栏目</th><th>状态</th><th>置信度</th><th>更新</th><th>操作</th></tr></thead>
               <tbody>{queue.results.map((article) => <tr key={article.id}>
@@ -127,6 +147,34 @@ export default async function AdminPage() {
       </div>
     </main>
   );
+}
+
+function dashboardQueueView(value: string | undefined) {
+  return value === "review" || value === "draft" || value === "published" || value === "failed" ? value : "all";
+}
+
+function dashboardQueueWhere(view: ReturnType<typeof dashboardQueueView>) {
+  if (view === "review") return "a.requires_review = 1 AND a.status != 'archived'";
+  if (view === "draft") return "a.status = 'draft'";
+  if (view === "published") return "a.status = 'published'";
+  if (view === "failed") return "a.status = 'failed'";
+  return "a.status != 'archived'";
+}
+
+function dashboardQueueLabel(view: ReturnType<typeof dashboardQueueView>) {
+  return ({
+    all: "全部文章",
+    review: "需要人工审核",
+    draft: "草稿",
+    published: "已发布",
+    failed: "失败文章",
+  } as Record<string, string>)[view];
+}
+
+function dashboardQueueTarget(view: ReturnType<typeof dashboardQueueView>) {
+  if (view === "review") return "/admin/articles?review=required";
+  if (view === "all") return "/admin/articles";
+  return `/admin/articles?status=${view}`;
 }
 
 function statusLabel(status: string, requiresReview: number) {

@@ -4,7 +4,24 @@ import { ArticleBulkManager } from "@/components/ArticleBulkManager";
 
 export const dynamic = "force-dynamic";
 
-type ArticleRow = { id: number; title: string; slug: string; status: string; updated_at: string; requires_review: number };
+type ArticleRow = {
+  id: number;
+  title: string;
+  slug: string;
+  status: string;
+  category: string | null;
+  confidence: number;
+  updated_at: string;
+  requires_review: number;
+};
+
+type ArticleStats = {
+  all_count: number;
+  draft_count: number;
+  review_count: number;
+  published_count: number;
+  archived_count: number;
+};
 
 export default async function AdminArticlesPage({
   searchParams,
@@ -37,15 +54,40 @@ export default async function AdminArticlesPage({
     bindings.push(like, like, like);
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const statement = env.DB.prepare(
-    `SELECT id, title, slug, status, updated_at, requires_review FROM articles ${where} ORDER BY updated_at DESC LIMIT 100`
-  );
-  const result = bindings.length ? await statement.bind(...bindings).all<ArticleRow>() : await statement.all<ArticleRow>();
+  const [result, stats] = await Promise.all([
+    (async () => {
+      const statement = env.DB.prepare(
+        `SELECT a.id, a.title, a.slug, a.status, c.name AS category, a.confidence,
+                a.updated_at, a.requires_review
+         FROM articles a
+         LEFT JOIN categories c ON c.id = a.category_id
+         ${where}
+         ORDER BY a.updated_at DESC LIMIT 100`
+      );
+      return bindings.length ? statement.bind(...bindings).all<ArticleRow>() : statement.all<ArticleRow>();
+    })(),
+    env.DB.prepare(
+      `SELECT
+        COUNT(*) AS all_count,
+        COALESCE(SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END), 0) AS draft_count,
+        COALESCE(SUM(CASE WHEN requires_review = 1 AND status != 'archived' THEN 1 ELSE 0 END), 0) AS review_count,
+        COALESCE(SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END), 0) AS published_count,
+        COALESCE(SUM(CASE WHEN status = 'archived' THEN 1 ELSE 0 END), 0) AS archived_count
+       FROM articles`
+    ).first<ArticleStats>(),
+  ]);
   const activeLabel = `${status ? statusLabel(status) : reviewRequired ? "需要人工审核" : "全部文章"}${query ? ` · 搜索“${query}”` : ""}`;
   return <main className="admin-shell">
     <header className="admin-top"><div className="shell admin-top-inner"><Link className="brand" href="/admin"><strong>TIMIU</strong><span>文章管理</span></Link><Link className="admin-user" href="/admin">返回工作台</Link></div></header>
     <div className="shell admin-page">
       <div className="admin-heading"><div><h1>文章列表</h1><p>编辑、审核、发布、撤回与归档。</p><div className="admin-actions"><Link className="primary-button admin-create-button" href="/admin/articles/new">＋ 新建文章</Link></div></div><span className="status-pill">{activeLabel} · {result.results.length} 篇</span></div>
+      <div className="article-stats-strip" aria-label="文章状态统计">
+        <Link className={!status && !reviewRequired ? "active" : ""} href={articleFilterHref("", false, query)}><span>全部</span><strong>{stats?.all_count ?? 0}</strong></Link>
+        <Link className={status === "draft" ? "active" : ""} href={articleFilterHref("draft", false, query)}><span>草稿</span><strong>{stats?.draft_count ?? 0}</strong></Link>
+        <Link className={reviewRequired ? "active" : ""} href={articleFilterHref("", true, query)}><span>需审核</span><strong>{stats?.review_count ?? 0}</strong></Link>
+        <Link className={status === "published" ? "active" : ""} href={articleFilterHref("published", false, query)}><span>已发布</span><strong>{stats?.published_count ?? 0}</strong></Link>
+        <Link className={status === "archived" ? "active" : ""} href={articleFilterHref("archived", false, query)}><span>已归档</span><strong>{stats?.archived_count ?? 0}</strong></Link>
+      </div>
       <nav className="article-filters" aria-label="文章筛选">
         <Link className={!status && !reviewRequired ? "active" : ""} href={articleFilterHref("", false, query)}>全部</Link>
         <Link className={status === "draft" ? "active" : ""} href={articleFilterHref("draft", false, query)}>草稿</Link>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-export function QuickArticleActions({ id, status }: { id: number; status: string }) {
+export function QuickArticleActions({ id, status, returnTo = "dashboard" }: { id: number; status: string; returnTo?: "dashboard" | "current" }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -21,6 +21,10 @@ export function QuickArticleActions({ id, status }: { id: number; status: string
     setBusy(false);
     if (!response.ok) {
       setMessage(result.error ?? `${label}失败`);
+      return;
+    }
+    if (returnTo === "current") {
+      window.location.reload();
       return;
     }
     if (action === "publish") {
