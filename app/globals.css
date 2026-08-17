@@ -302,6 +302,8 @@ img { max-width: 100%; }
 .one-click-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .one-click-panel .primary-button { border: 0; cursor: pointer; font-size: 12px; }
 .one-click-panel .primary-button:disabled { cursor: not-allowed; opacity: .55; }
+.secondary-inline-button { justify-self: start; padding: 9px 12px; border: 1px solid #c7d0ca; background: white; color: #384754; cursor: pointer; font-size: 11px; font-weight: 850; }
+.secondary-inline-button:hover { border-color: #88aa20; color: #4b6600; }
 .stop-button { padding: 12px 16px; border: 1px solid #f0b4aa; background: #fff3f0; color: #8f261c; cursor: pointer; font-weight: 800; }
 .stop-button:hover { border-color: #d96150; background: #ffe7e2; }
 .one-click-panel > ol { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }

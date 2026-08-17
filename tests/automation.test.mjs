@@ -595,6 +595,12 @@ test("后台提供一键 RSS 处理流程但仍逐步执行安全检查", async 
   assert.match(component, /\/api\/admin\/feed\/\$\{id\}\/translate/);
   assert.match(component, /\/api\/admin\/automation\/auto-publish/);
   assert.match(component, /Math\.min\(currentLimit, 20\)/);
+  assert.match(component, /while \(true\)/);
+  assert.match(component, /fetchPendingBatch/);
+  assert.match(component, /processedFeedIds/);
+  assert.match(component, /runAutoPublishCheck/);
+  assert.match(component, /进度已保留/);
+  assert.doesNotMatch(component, /页面即将刷新/);
   assert.match(component, /AbortController/);
   assert.match(component, /立刻停止/);
   assert.match(component, /beforeunload/);
@@ -603,6 +609,9 @@ test("后台提供一键 RSS 处理流程但仍逐步执行安全检查", async 
   assert.match(pendingRoute, /processing_status = 'translation_required'/);
   assert.match(pendingRoute, /translation_running/);
   assert.match(pendingRoute, /-30 minutes/);
+  assert.match(pendingRoute, /exclude/);
+  assert.match(pendingRoute, /parseExcludedIds/);
+  assert.match(pendingRoute, /COUNT\(\*\) AS count/);
   assert.match(pendingRoute, /LIMIT \?/);
   assert.match(translateRoute, /translation_failed/);
   assert.match(translateRoute, /translation_running/);
