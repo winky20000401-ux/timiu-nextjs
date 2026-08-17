@@ -14,6 +14,7 @@ import {
   parseTranslationDraft,
 } from "@/lib/gemini-translation";
 import { absoluteSiteUrl } from "@/lib/site";
+import { addRelevantTrendingTags } from "@/lib/trending-tags";
 
 type FeedRow = {
   id: number;
@@ -191,6 +192,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const tag = await env.DB.prepare("SELECT id FROM tags WHERE slug = ?").bind(tagSlug).first<{ id: number }>();
       if (tag) await env.DB.prepare("INSERT OR IGNORE INTO article_tags (article_id, tag_id) VALUES (?, ?)").bind(articleId, tag.id).run();
     }
+    await addRelevantTrendingTags(env.DB, articleId, {
+      title: draft.title,
+      description: draft.description,
+      contentHtml,
+      sourceUrl: item.url,
+      tags: draft.tags,
+    });
 
     await env.DB.prepare(
       `INSERT INTO sources (url, title, publisher, published_at, fetched_at, is_valid)

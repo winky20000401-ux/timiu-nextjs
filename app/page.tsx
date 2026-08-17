@@ -4,6 +4,7 @@ import { PageFrame } from "@/components/SiteChrome";
 import { categoryMeta } from "@/lib/content";
 import { mediaUrl } from "@/lib/media";
 import { getVisibleArticles } from "@/lib/published-articles";
+import { trendingTags } from "@/lib/trending-tags";
 
 export const dynamic = "force-dynamic";
 
@@ -77,8 +78,8 @@ export default async function Home() {
         <section className="ticker" aria-label="热门标签">
           <div className="shell ticker-track">
             <strong>TRENDING</strong>
-            {["PC游戏", "PlayStation", "Xbox", "Nintendo", "Steam", "独立游戏"].map((tag) => (
-              <Link href={`/tag/${encodeURIComponent(tag)}`} key={tag}>#{tag}</Link>
+            {trendingTags.map((tag) => (
+              <Link href={`/tag/${encodeURIComponent(tag.name)}`} key={tag.name}>#{tag.name}</Link>
             ))}
           </div>
         </section>

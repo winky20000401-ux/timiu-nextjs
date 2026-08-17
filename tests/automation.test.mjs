@@ -3,6 +3,7 @@ import test from "node:test";
 import { canAutoPublish, hasVersionConflict, titleSimilarity } from "../lib/automation.ts";
 import { detectLanguage, feedImageCandidate, feedUrlWithLimit, gameRelevanceLabel, isGameRelatedFeedItem, prepareFeedItems, stripHtml } from "../lib/feed.ts";
 import { mediaUrl, safeCoverKey } from "../lib/media.ts";
+import { matchTrendingTags, trendingTags } from "../lib/trending-tags.ts";
 import {
   buildTranslationPrompt,
   estimateGeminiCostMicrousd,
@@ -53,6 +54,31 @@ test("自动发布必须满足全部安全条件", () => {
   assert.equal(canAutoPublish({ ...safe, hasConflict: true }), false);
   assert.equal(canAutoPublish({ ...safe, isRumor: true }), false);
   assert.equal(canAutoPublish({ ...safe, isDuplicate: true }), false);
+});
+
+test("趋势标签会按文章相关性匹配到首页标签栏", () => {
+  assert.deepEqual(trendingTags.map((tag) => tag.name), ["PC游戏", "PlayStation", "Xbox", "Nintendo", "Steam", "独立游戏"]);
+  assert.deepEqual(
+    matchTrendingTags({
+      title: "Steam Deck 掌机新游戏优化更新",
+      description: "PC 玩家可在 Steam 平台更新",
+      tags: ["硬件"],
+    }),
+    ["PC游戏", "Steam"],
+  );
+  assert.deepEqual(
+    matchTrendingTags({
+      title: "PlayStation 与 Nintendo Switch 版本同步公开",
+      description: "独立团队公布主机平台计划",
+    }),
+    ["PlayStation", "Nintendo", "独立游戏"],
+  );
+});
+
+test("首页热门标签栏复用趋势标签配置", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /trendingTags/);
+  assert.match(page, /encodeURIComponent\(tag\.name\)/);
 });
 
 test("Gemini 3.6 使用 Interactions API 与搜索工具", async () => {
@@ -567,6 +593,9 @@ test("后台可以手动执行自动发布检查并保留安全条件", async ()
   const page = await readFile(new URL("../app/admin/page.tsx", import.meta.url), "utf8");
   const button = await readFile(new URL("../components/AutoPublishRunButton.tsx", import.meta.url), "utf8");
   const route = await readFile(new URL("../app/api/admin/automation/auto-publish/route.ts", import.meta.url), "utf8");
+  const statusRoute = await readFile(new URL("../app/api/admin/articles/[id]/status/route.ts", import.meta.url), "utf8");
+  const bulkRoute = await readFile(new URL("../app/api/admin/articles/bulk-status/route.ts", import.meta.url), "utf8");
+  const translateRoute = await readFile(new URL("../app/api/admin/feed/[id]/translate/route.ts", import.meta.url), "utf8");
   assert.match(page, /AutoPublishRunButton/);
   assert.match(button, /立即自动发布检查/);
   assert.match(button, /\/api\/admin\/automation\/auto-publish/);
@@ -580,6 +609,10 @@ test("后台可以手动执行自动发布检查并保留安全条件", async ()
   assert.match(route, /置信度 .* < 0\.60/);
   assert.match(route, /正文 .* < 600 字/);
   assert.match(route, /没有有效来源/);
+  assert.match(route, /addRelevantTrendingTags/);
+  assert.match(statusRoute, /addRelevantTrendingTags/);
+  assert.match(bulkRoute, /addRelevantTrendingTags/);
+  assert.match(translateRoute, /addRelevantTrendingTags/);
 });
 
 test("后台提供一键 RSS 处理流程但仍逐步执行安全检查", async () => {

@@ -1,6 +1,7 @@
 import { getAdminUser } from "@/app/admin-auth";
 import { safeCoverKey } from "@/lib/media";
 import { absoluteSiteUrl } from "@/lib/site";
+import { addRelevantTrendingTags } from "@/lib/trending-tags";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -54,6 +55,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const tag = await env.DB.prepare("SELECT id FROM tags WHERE slug = ?").bind(tagSlug).first<{ id: number }>();
     if (tag) await env.DB.prepare("INSERT OR IGNORE INTO article_tags (article_id, tag_id) VALUES (?, ?)").bind(id, tag.id).run();
   }
+  await addRelevantTrendingTags(env.DB, id, {
+    title,
+    description,
+    contentHtml,
+    sourceUrl,
+    tags: tagNames,
+  });
   if (sourceUrl) {
     await env.DB.prepare(
       `INSERT INTO sources (url, title, publisher, fetched_at, is_valid)

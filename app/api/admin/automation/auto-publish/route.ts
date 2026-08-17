@@ -1,5 +1,6 @@
 import { getAdminUser } from "@/app/admin-auth";
 import { automationDefaults, canAutoPublish } from "@/lib/automation";
+import { addRelevantTrendingTags } from "@/lib/trending-tags";
 
 type SiteSettingRow = {
   value: string;
@@ -9,10 +10,12 @@ type CandidateArticle = {
   id: number;
   title: string;
   status: string;
+  description: string;
   confidence: number;
   content_html: string;
   category_id: number | null;
   review_reason: string;
+  tags: string;
 };
 
 export async function POST(request: Request) {
@@ -35,10 +38,17 @@ export async function POST(request: Request) {
   const dbUser = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(user.email).first<{ id: number }>();
 
   const candidates = await env.DB.prepare(
-    `SELECT id, title, status, confidence, content_html, category_id, review_reason
-     FROM articles
-     WHERE status IN ('draft', 'review') AND status != 'archived'
-     ORDER BY updated_at DESC
+    `SELECT a.id, a.title, a.status, a.confidence, a.content_html, a.category_id, a.review_reason,
+            a.description,
+            COALESCE((
+              SELECT group_concat(t.name, '|||')
+              FROM article_tags at
+              JOIN tags t ON t.id = at.tag_id
+              WHERE at.article_id = a.id
+            ), '') AS tags
+     FROM articles a
+     WHERE a.status IN ('draft', 'review') AND a.status != 'archived'
+     ORDER BY a.updated_at DESC
      LIMIT ?`
   ).bind(limit * 3).all<CandidateArticle>();
 
@@ -56,6 +66,12 @@ export async function POST(request: Request) {
       results.push({ id: article.id, title: article.title, published: false, reasons: evaluation.reasons });
       continue;
     }
+    await addRelevantTrendingTags(env.DB, article.id, {
+      title: article.title,
+      description: article.description,
+      contentHtml: article.content_html,
+      tags: article.tags ? article.tags.split("|||").filter(Boolean) : [],
+    });
     await env.DB.prepare(
       `UPDATE articles
        SET status = 'published', requires_review = 0, review_reason = '',

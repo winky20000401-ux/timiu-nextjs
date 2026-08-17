@@ -2,6 +2,7 @@ import { getAdminUser } from "@/app/admin-auth";
 import { ensureDefaultCategories } from "@/lib/categories";
 import { safeCoverKey } from "@/lib/media";
 import { absoluteSiteUrl } from "@/lib/site";
+import { addRelevantTrendingTags } from "@/lib/trending-tags";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "请求来源无效" }, { status: 403 });
@@ -82,6 +83,13 @@ export async function POST(request: Request) {
     const tag = await env.DB.prepare("SELECT id FROM tags WHERE slug = ?").bind(tagSlug).first<{ id: number }>();
     if (tag) await env.DB.prepare("INSERT OR IGNORE INTO article_tags (article_id, tag_id) VALUES (?, ?)").bind(articleId, tag.id).run();
   }
+  await addRelevantTrendingTags(env.DB, articleId, {
+    title,
+    description,
+    contentHtml,
+    sourceUrl,
+    tags: tagNames,
+  });
 
   if (sourceUrl) {
     await env.DB.prepare(

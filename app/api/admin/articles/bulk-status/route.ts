@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/app/admin-auth";
+import { addRelevantTrendingTags } from "@/lib/trending-tags";
 
 const ACTIONS = ["publish", "unpublish", "archive"] as const;
 const MAX_BULK_ARTICLES = 100;
@@ -12,6 +13,7 @@ type ArticleRow = {
   description: string;
   content_html: string;
   category_id: number | null;
+  tags: string;
 };
 
 export async function POST(request: Request) {
@@ -47,7 +49,14 @@ export async function POST(request: Request) {
 
 async function transitionArticle(db: D1Database, id: number, action: BulkAction, userId: number | null) {
   const article = await db.prepare(
-    "SELECT id, title, status, description, content_html, category_id FROM articles WHERE id = ?"
+    `SELECT a.id, a.title, a.status, a.description, a.content_html, a.category_id,
+            COALESCE((
+              SELECT group_concat(t.name, '|||')
+              FROM article_tags at
+              JOIN tags t ON t.id = at.tag_id
+              WHERE at.article_id = a.id
+            ), '') AS tags
+     FROM articles a WHERE a.id = ?`
   ).bind(id).first<ArticleRow>();
   if (!article) return { id, ok: false, error: "文章不存在" };
   if (article.status === "archived" && action !== "archive") return { id, ok: false, error: "已归档文章不能批量发布或撤回" };
@@ -58,6 +67,12 @@ async function transitionArticle(db: D1Database, id: number, action: BulkAction,
     if (!article.title || !article.description || !article.content_html || !article.category_id || !source?.count) {
       return { id, ok: false, error: "缺少标题、描述、正文、栏目或来源" };
     }
+    await addRelevantTrendingTags(db, id, {
+      title: article.title,
+      description: article.description,
+      contentHtml: article.content_html,
+      tags: article.tags ? article.tags.split("|||").filter(Boolean) : [],
+    });
     target = "published";
     await db.prepare(
       "UPDATE articles SET status = ?, requires_review = ?, review_reason = '', published_at = COALESCE(published_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?"

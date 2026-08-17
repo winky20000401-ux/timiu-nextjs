@@ -1,5 +1,6 @@
 import { getAdminUser } from "@/app/admin-auth";
 import { absoluteSiteUrl } from "@/lib/site";
+import { addRelevantTrendingTags } from "@/lib/trending-tags";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const origin = request.headers.get("origin");
@@ -14,8 +15,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const { env } = await import("cloudflare:workers");
   const article = await env.DB.prepare(
-    "SELECT id, title, slug, status, description, content_html, category_id FROM articles WHERE id = ?"
-  ).bind(id).first<{ id: number; title: string; slug: string; status: string; description: string; content_html: string; category_id: number | null }>();
+    `SELECT a.id, a.title, a.slug, a.status, a.description, a.content_html, a.category_id,
+            COALESCE((
+              SELECT group_concat(t.name, '|||')
+              FROM article_tags at
+              JOIN tags t ON t.id = at.tag_id
+              WHERE at.article_id = a.id
+            ), '') AS tags
+     FROM articles a WHERE a.id = ?`
+  ).bind(id).first<{ id: number; title: string; slug: string; status: string; description: string; content_html: string; category_id: number | null; tags: string }>();
   if (!article) return Response.json({ error: "文章不存在" }, { status: 404 });
   let target = "archived";
   if (action === "publish") {
@@ -23,6 +31,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!article.title || !article.description || !article.content_html || !article.category_id || !source?.count) {
       return Response.json({ error: "发布前必须补全标题、描述、正文、栏目和至少一个来源" }, { status: 409 });
     }
+    await addRelevantTrendingTags(env.DB, id, {
+      title: article.title,
+      description: article.description,
+      contentHtml: article.content_html,
+      tags: article.tags ? article.tags.split("|||").filter(Boolean) : [],
+    });
     target = "published";
     await env.DB.prepare(
       "UPDATE articles SET status = ?, requires_review = ?, review_reason = '', canonical_url = COALESCE(NULLIF(canonical_url, ''), ?), published_at = COALESCE(published_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?"
