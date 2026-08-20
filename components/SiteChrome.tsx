@@ -3,14 +3,7 @@ import { allTags, categoryMeta } from "@/lib/content";
 
 export function SiteHeader() {
   return (
-    <>
-      <div className="signal-bar">
-        <div className="shell signal-inner">
-          <span><i /> 编辑演示版 · 自动发布保持关闭</span>
-          <span className="signal-right">事实优先 · 来源可追溯</span>
-        </div>
-      </div>
-      <header className="site-header">
+    <header className="site-header">
         <div className="shell nav-row">
           <Link className="brand" href="/" aria-label="TIMIU 游戏资讯首页">
             <strong>TIMIU</strong>
@@ -20,6 +13,7 @@ export function SiteHeader() {
             {Object.entries(categoryMeta).map(([key, meta]) => (
               <Link href={meta.href} key={key}>{meta.name}</Link>
             ))}
+            <Link href="/#mini-games">小游戏</Link>
             <Link href="/about">关于</Link>
           </nav>
           <div className="nav-actions">
@@ -32,6 +26,7 @@ export function SiteHeader() {
                 {Object.entries(categoryMeta).map(([key, meta]) => (
                   <Link href={meta.href} key={key}>{meta.name}</Link>
                 ))}
+                <Link href="/#mini-games">小游戏</Link>
                 <Link href="/search">搜索</Link>
                 <Link href="/about">关于我们</Link>
               </nav>
@@ -39,7 +34,6 @@ export function SiteHeader() {
           </div>
         </div>
       </header>
-    </>
   );
 }
 

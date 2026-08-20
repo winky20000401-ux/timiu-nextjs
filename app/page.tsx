@@ -1,144 +1,183 @@
 import Link from "next/link";
-import { ArticleCard } from "@/components/ArticleCard";
 import { PageFrame } from "@/components/SiteChrome";
-import { categoryMeta } from "@/lib/content";
+import { MiniGames } from "@/components/MiniGames";
+import { categoryMeta, formatDate, type CategoryKey } from "@/lib/content";
 import { mediaUrl } from "@/lib/media";
 import { getVisibleArticles } from "@/lib/published-articles";
 import { trendingTags } from "@/lib/trending-tags";
 
 export const dynamic = "force-dynamic";
 
+function CategoryTag({ category, label }: { category: CategoryKey; label: string }) {
+  const cls =
+    category === "news"
+      ? "gs-tag gs-tag-news"
+      : category === "hardware"
+        ? "gs-tag gs-tag-hardware"
+        : category === "guides"
+          ? "gs-tag gs-tag-guides"
+          : "gs-tag gs-tag-default";
+  return <span className={cls}>{label}</span>;
+}
+
 export default async function Home() {
   const visibleArticles = await getVisibleArticles();
   const lead = visibleArticles[0];
-  const sideLeads = visibleArticles.slice(1, 3);
-  const latestFeature = visibleArticles[3] ?? visibleArticles[0];
-  const latestList = visibleArticles.slice(4, 9);
-  const newsroomStats = [
-    { label: "已发布稿件", value: String(visibleArticles.length).padStart(2, "0") },
-    { label: "核心频道", value: "03" },
-    { label: "人工审核", value: "100%" },
-  ];
+  const secondary = visibleArticles.slice(1, 4);
+  const latest = visibleArticles.slice(4, 14);
+  const trending = trendingTags.slice(0, 10);
+
+  if (!lead) {
+    return (
+      <PageFrame>
+        <main className="gs-home">
+          <div style={{ padding: "60px 20px", textAlign: "center", color: "var(--gs-muted)" }}>
+            暂无可显示的文章。
+          </div>
+        </main>
+      </PageFrame>
+    );
+  }
+
   return (
     <PageFrame>
-      <main>
-        <section className="hero shell">
-          <div className="hero-heading">
-            <div>
-              <p className="section-label">今日焦点 / TOP STORY</p>
-              <h1>读懂游戏，<br /><em>不止看见标题。</em></h1>
-            </div>
-            <p>从新闻事实到玩家影响，TIMIU 用清晰来源与人工审核，整理值得关注的游戏世界。</p>
-          </div>
-          <div className="lead-grid">
-            <article className="lead-card">
-              <Link className={`lead-art cover-${lead.tone}`} href={`/article/${lead.slug}`}>
-                {lead.coverObjectKey
-                  ? <img className="lead-cover-image" src={mediaUrl(lead.coverObjectKey)} alt="" />
-                  : <>
-                    <div className="grid-lines" aria-hidden="true" />
-                    <span className="lead-mark">TIMIU / 01</span>
-                    <strong>NEWS<br />ROOM</strong>
-                    <small>编辑流程公开说明</small>
-                  </>}
-              </Link>
-              <div className="lead-copy">
-                <div className="eyebrow"><span>{lead.kicker}</span><span>6 MIN READ</span></div>
-                <h2><Link href={`/article/${lead.slug}`}>{lead.title}</Link></h2>
-                <p>{lead.dek}</p>
-                <div className="lead-tags">{lead.tags.map((tag) => <Link href={`/tag/${encodeURIComponent(tag)}`} key={tag}>#{tag}</Link>)}</div>
-              </div>
-            </article>
-            <div className="side-leads">
-              <div className="newsroom-card" aria-label="TIMIU 编辑台概览">
-                <span className="section-label">NEWSROOM INDEX</span>
-                <strong>重点资讯<br />先读事实。</strong>
-                <div>
-                  {newsroomStats.map((item) => <p key={item.label}><b>{item.value}</b><span>{item.label}</span></p>)}
-                </div>
-              </div>
-              {sideLeads.map((article, index) => (
-                <article key={article.slug} className="side-lead">
-                  <div className={`mini-art cover-${article.tone}`}>
-                    {article.coverObjectKey
-                      ? <img className="article-cover-image" src={mediaUrl(article.coverObjectKey)} alt="" />
-                      : <><span>0{index + 2}</span><b>T</b></>}
-                  </div>
-                  <div>
-                    <span className="section-label">{article.kicker}</span>
-                    <h3><Link href={`/article/${article.slug}`}>{article.title}</Link></h3>
-                    <p>{article.dek}</p>
-                  </div>
-                </article>
-              ))}
+      <main className="gs-home">
+        {/* Hero spotlight */}
+        <section className="gs-hero" aria-label="头条">
+          <Link className="gs-hero-art" href={`/article/${lead.slug}`} aria-label={lead.title}>
+            {lead.coverObjectKey ? (
+              <img src={mediaUrl(lead.coverObjectKey)} alt="" />
+            ) : (
+              <div className={`gs-hero-fallback cover-${lead.tone}`} />
+            )}
+          </Link>
+          <div className="gs-hero-copy">
+            <CategoryTag category={lead.category} label="头条" />
+            <h1 className="gs-hero-title">
+              <Link href={`/article/${lead.slug}`}>{lead.title}</Link>
+            </h1>
+            <div className="gs-hero-meta">
+              {lead.kicker} · {lead.readingMinutes} MIN READ · {formatDate(lead.publishedAt)}
             </div>
           </div>
         </section>
 
-        <section className="ticker" aria-label="热门标签">
-          <div className="shell ticker-track">
+        {/* Secondary 3-card grid */}
+        <section className="gs-secondary-grid" aria-label="精选">
+          {secondary.map((article) => (
+            <article key={article.slug} className="gs-secondary-card">
+              <Link className="gs-secondary-cover" href={`/article/${article.slug}`}>
+                {article.coverObjectKey ? (
+                  <img src={mediaUrl(article.coverObjectKey)} alt="" />
+                ) : (
+                  <div className={`gs-cover-fallback cover-${article.tone}`} />
+                )}
+              </Link>
+              <div className="gs-secondary-copy">
+                <CategoryTag category={article.category} label={categoryMeta[article.category].name} />
+                <h3 className="gs-secondary-title">
+                  <Link href={`/article/${article.slug}`}>{article.title}</Link>
+                </h3>
+                <div className="gs-secondary-meta">
+                  {formatDate(article.publishedAt)} · {article.readingMinutes} 分钟
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        {/* Trending tags ticker */}
+        <section className="gs-trending-bar" aria-label="热门标签">
+          <div className="gs-trending-track">
             <strong>TRENDING</strong>
-            {trendingTags.map((tag) => (
-              <Link href={`/tag/${encodeURIComponent(tag.name)}`} key={tag.name}>#{tag.name}</Link>
+            {trending.map((tag) => (
+              <Link href={`/tag/${encodeURIComponent(tag.name)}`} key={tag.name}>
+                #{tag.name}
+              </Link>
             ))}
           </div>
         </section>
 
-        <section className="shell section-block">
-          <div className="section-head">
-            <div><span className="section-index">01</span><h2>最新文章</h2></div>
-            <Link href="/search">浏览全部 <span>→</span></Link>
+        {/* Latest news vertical list */}
+        <section className="gs-latest-list" aria-label="最新资讯">
+          <div className="gs-section-head">
+            <h2 className="gs-section-title">最新资讯</h2>
+            <Link className="gs-section-link" href="/search">
+              浏览全部 →
+            </Link>
           </div>
-          <div className="latest-layout">
-            <article className="latest-feature">
-              <Link className={`latest-feature-art cover-${latestFeature.tone}`} href={`/article/${latestFeature.slug}`} aria-label={latestFeature.title}>
-                {latestFeature.coverObjectKey
-                  ? <img className="article-cover-image" src={mediaUrl(latestFeature.coverObjectKey)} alt="" />
-                  : <><span>FEATURE</span><b>T</b></>}
-              </Link>
-              <div className="latest-feature-copy">
-                <div className="eyebrow"><span>{categoryMeta[latestFeature.category].name}</span><span>{latestFeature.readingMinutes} MIN READ</span></div>
-                <h3><Link href={`/article/${latestFeature.slug}`}>{latestFeature.title}</Link></h3>
-                <p>{latestFeature.dek}</p>
-                <div className="lead-tags">{latestFeature.tags.slice(0, 4).map((tag) => <Link href={`/tag/${encodeURIComponent(tag)}`} key={tag}>#{tag}</Link>)}</div>
-              </div>
-            </article>
-            <div className="latest-stack">
-              {(latestList.length ? latestList : visibleArticles.slice(0, 5)).map((article) => <ArticleCard article={article} compact key={article.slug} />)}
-            </div>
+          <div className="gs-latest-vertical">
+            {latest.map((article) => (
+              <article key={article.slug} className="gs-latest-item">
+                <Link className="gs-latest-thumb" href={`/article/${article.slug}`}>
+                  {article.coverObjectKey ? (
+                    <img src={mediaUrl(article.coverObjectKey)} alt="" />
+                  ) : (
+                    <div className={`gs-thumb-fallback cover-${article.tone}`} />
+                  )}
+                </Link>
+                <div className="gs-latest-copy">
+                  <CategoryTag category={article.category} label={categoryMeta[article.category].name} />
+                  <h3 className="gs-latest-title">
+                    <Link href={`/article/${article.slug}`}>{article.title}</Link>
+                  </h3>
+                  <div className="gs-latest-meta">
+                    {formatDate(article.publishedAt)} · 人工审核 · {article.readingMinutes} 分钟阅读
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section className="dark-band">
-          <div className="shell section-block">
-            <div className="section-head light">
-              <div><span className="section-index">02</span><h2>频道精选</h2></div>
+        {/* Channel picks */}
+        <section className="gs-channels" aria-label="频道精选">
+          <div className="gs-channels-inner">
+            <div className="gs-channels-head">
+              <h2>频道精选</h2>
               <span>编辑挑选 · 每日更新</span>
             </div>
-            <div className="channel-grid">
+            <div className="gs-channel-grid">
               {Object.entries(categoryMeta).map(([key, meta]) => {
-                const picks = visibleArticles.filter((article) => article.category === key);
-                return <div className="channel-column" key={key}>
-                  <div className="channel-title"><h3>{meta.name}</h3><Link href={meta.href}>进入频道 →</Link></div>
-                  {picks.slice(0, 2).map((article, index) => (
-                    <div className="ranked" key={article.slug}>
-                      <span>0{index + 1}</span>
-                      <div><h4><Link href={`/article/${article.slug}`}>{article.title}</Link></h4><small>{article.kicker} · {article.readingMinutes} 分钟</small></div>
-                    </div>
-                  ))}
-                </div>;
+                const picks = visibleArticles.filter((a) => a.category === key).slice(0, 3);
+                return (
+                  <div className="gs-channel-col" key={key}>
+                    <h3>
+                      {meta.name}
+                      <Link href={meta.href}>进入频道 →</Link>
+                    </h3>
+                    {picks.length === 0 ? (
+                      <div className="gs-channel-item">
+                        <small>暂无文章</small>
+                      </div>
+                    ) : (
+                      picks.map((article) => (
+                        <div className="gs-channel-item" key={article.slug}>
+                          <Link href={`/article/${article.slug}`}>{article.title}</Link>
+                          <small>{article.kicker} · {article.readingMinutes} 分钟</small>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
               })}
             </div>
           </div>
         </section>
 
-        <section className="shell newsletter">
-          <div>
-            <span className="section-label">TIMIU DAILY</span>
+        {/* Mini-games playable section */}
+        <MiniGames />
+
+        {/* Newsletter / RSS band */}
+        <section className="gs-newsletter" aria-label="订阅 RSS">
+          <div className="gs-newsletter-inner">
+            <span>TIMIU DAILY</span>
             <h2>重要的，不该被信息流淹没。</h2>
             <p>RSS 已准备好。正式内容接入后，你可以通过阅读器直接订阅。</p>
+            <Link className="gs-newsletter-btn" href="/rss.xml">
+              订阅 RSS ↗
+            </Link>
           </div>
-          <Link className="primary-button" href="/rss.xml">订阅 RSS <span>↗</span></Link>
         </section>
       </main>
     </PageFrame>
